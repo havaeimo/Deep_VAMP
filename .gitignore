@@ -1,3 +1,6 @@
 *.pyc
 *.pkl
 *.npy
+*.png
+*.jpg
+*.jpeg
