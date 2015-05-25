@@ -1,0 +1,121 @@
+!obj:pylearn2.train.Train {
+    dataset: &train !obj:pylearn2.datasets.deep_vamp.VAMP { 
+      center: False,
+      gcn: False,
+      toronto_prepro: True,
+      #axes: ['b', 0, 1, 'c'],
+      start: 0,
+      stop: 10000,
+      image_resize: [64,64]
+    },
+
+    model: !obj:pylearn2.models.mlp.MLP {
+        batch_size: 100,
+        input_space: !obj:pylearn2.space.Conv2DSpace {
+          shape: [64, 64],
+          num_channels: 3,
+          axes: ['b', 0, 1, 'c'],
+        },
+        layers: [
+
+            !obj:pylearn2.models.mlp.ConvRectifiedLinear {
+                layer_name: 'h0',
+                kernel_shape: [3, 3],
+                pool_shape: [4, 4],
+                pool_stride: [1, 1],
+                output_channels: 32,
+                irange: .05,
+                max_kernel_norm: .9
+            },
+
+            !obj:pylearn2.models.mlp.ConvRectifiedLinear {
+                layer_name: 'h1',
+                kernel_shape: [3, 3],
+                pool_shape: [3, 3],
+                pool_stride: [1, 1],
+                output_channels: 32,
+                irange: .05,
+                max_kernel_norm: .9
+            },
+
+            !obj:pylearn2.models.mlp.ConvRectifiedLinear {
+                layer_name: 'h3',
+                kernel_shape: [55, 55],
+                pool_shape: [1, 1],
+                pool_stride: [1, 1],
+                output_channels: 2,
+                irange: .05,
+                max_kernel_norm: .9
+            },
+
+
+
+
+                !obj:softmax_multiout_new.ConvSoftmax {
+                    n_classes: 2,
+                    layer_name: 'convsoftmax',
+                    },
+                !obj:softmax_multiout_new.Conv2VectorSpace {
+                    n_classes: 2,
+                    layer_name: 'y',
+                    },
+
+                ],
+
+    },
+    algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
+        learning_rate: .01,
+        learning_rule: !obj:pylearn2.training_algorithms.learning_rule.Momentum {
+            init_momentum: 0.5,
+        },
+        monitoring_dataset: {
+            'train' : *train,
+            'valid' : !obj:pylearn2.datasets.deep_vamp.VAMP {
+            center: False,
+            gcn: False,
+            toronto_prepro: True,
+            #axes: ['b', 0, 1, 'c'],
+            start: 10000,
+            stop: 13200,
+            image_resize: [64,64]
+          },
+            'test' : !obj:pylearn2.datasets.deep_vamp.real_VAMP {
+            center: False,
+            gcn: False,
+            toronto_prepro: True,
+            #axes: ['c', 0, 1, 'b'],
+            start: 0,
+            stop: 3000,
+            image_resize: [64,64]
+            },
+        },
+        termination_criterion: !obj:pylearn2.termination_criteria.EpochCounter {
+            max_epochs: 1000
+        },
+       cost: !obj:pylearn2.costs.cost.SumOfCosts { costs: [
+            !obj:pylearn2.costs.cost.MethodCost {
+                method: 'cost_from_X'
+            }
+            #, !obj:pylearn2.costs.mlp.WeightDecay {
+            #    coeffs: [ .00005, .00005, .00005 ]}
+            ]},
+            },
+    extensions: [
+        !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
+             channel_name: 'valid_y_misclass',
+             save_path: "${PYLEARN2_TRAIN_FILE_FULL_STEM}_best.pkl"
+        },
+        !obj:pylearn2.training_algorithms.learning_rule.MomentumAdjustor {
+            start: 1,
+            saturate: 100,
+            final_momentum: .9
+        },
+        !obj:pylearn2.training_algorithms.sgd.LinearDecayOverEpoch {
+            start: 10,
+            saturate: 250,
+            decay_factor: .1
+        }
+    ],
+    save_path: "${PYLEARN2_TRAIN_FILE_FULL_STEM}.pkl",
+    save_freq: 1
+}
