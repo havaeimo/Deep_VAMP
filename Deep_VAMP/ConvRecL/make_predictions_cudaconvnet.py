@@ -1,3 +1,4 @@
+import pdb
 import numpy as np
 #from matplotlib.pyplot import imsave
 import numpy
@@ -107,6 +108,7 @@ if __name__ == "__main__":
     #num_channels = model.input_space.num_channels
     #model.layers[0].input_space.shape = (240,320)
     #model.layers[0].desired_space.shape = (240, 320)   
+    pdb.set_trace()
     X = model.get_input_space().make_theano_batch()
     fprop = theano.function([X], model.fprop(X))
     #theano.printing.debugprint(f)

@@ -56,7 +56,6 @@ def generate_prediction(data,fprop,batch_size=100):
             batch = buffer_batch
 
         results_batch = fprop(batch)
-        pdb.set_trace()
         if num_samples < batch_size:
             results_batch = results_batch[0:num_samples,...]
 
@@ -105,11 +104,9 @@ if __name__ == "__main__":
         os.makedirs(result_path)
 
     model = cPickle.load(args.model)
-    del model.layers[-1]
-    del model.layers[-1]
-    #num_channels = model.input_space.num_channels
     #model.layers[0].input_space.shape = (240,320)
     #model.layers[0].desired_space.shape = (240, 320)   
+    pdb.set_trace()
     X = model.get_input_space().make_theano_batch()
     fprop = theano.function([X], model.fprop(X))
     #theano.printing.debugprint(f)
