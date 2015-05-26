@@ -47,14 +47,14 @@
                  },
 
 
-                !obj:softmax_multiout_new.ConvSoftmax {
+                !obj:softmax_multiout_new_dev.ConvSoftmax {
                     n_classes: 2,
-                    layer_name: 'layer2',
-                    },
-                !obj:softmax_multiout_new.Conv2VectorSpace {
+                    layer_name: 'layerconv',
+                    },           
+                !obj:softmax_multiout_new_dev.Conv2VectorSpace {
                     n_classes: 2,
                     layer_name: 'y',
-                    },           
+                    },
 
                 ],
 

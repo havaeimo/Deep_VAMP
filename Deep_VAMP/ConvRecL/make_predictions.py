@@ -1,3 +1,4 @@
+import pdb
 import numpy as np
 #from matplotlib.pyplot import imsave
 import numpy
@@ -55,6 +56,7 @@ def generate_prediction(data,fprop,batch_size=100):
             batch = buffer_batch
 
         results_batch = fprop(batch)
+        pdb.set_trace()
         if num_samples < batch_size:
             results_batch = results_batch[0:num_samples,...]
 
@@ -98,7 +100,7 @@ if __name__ == "__main__":
     #path_testset = self.testset
     path_testset = '/home/local/USHERBROOKE/havm2701/data/DBFrames'
 
-    result_path = '/home/local/USHERBROOKE/havm2701/scripts/Deep_VAMP/ConvRecL/test_results/'
+    result_path = '/home/local/USHERBROOKE/havm2701/git.repos/Deep_VAMP/ConvRecL/test_results2/'
     if not os.path.exists(result_path):
         os.makedirs(result_path)
 
@@ -126,6 +128,7 @@ if __name__ == "__main__":
     for name, test_image in izip(name_testdata,testdata):
         prob_map = generate_prediction_patchwise([test_image],fprop)
         import pdb
+        pdb.set_trace()
         prob_map = prob_map[0]
         pos_map = prob_map[...,1]
         #neg_map = prob_map[...,0]
