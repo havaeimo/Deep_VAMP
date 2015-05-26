@@ -18,12 +18,12 @@ def makepatches(image):
 
     idx = 0
     height,width = image.shape[:-1]
-    patches = np.zeros(((height-128)*(width-64),128,64,3),dtype=np.float32)
-    for i in range(height-128):
-        for j in range(width-64):
-            patches[idx,...] = image[i:i+128,j:j+64,:]
+    patches = np.zeros(((height-input_shape[0])*(width-input_shape[1]),input_shape[0],input_shape[1],3),dtype=np.float32)
+    for i in range(height-input_shape[0]):
+        for j in range(width-input_shape[1]):
+            patches[idx,...] = image[i:i+input_shape[0],j:j+input_shape[1],:]
             idx += 1
-    assert patches.shape[0] == (height-128)*(width-64)        
+    assert patches.shape[0] == (height-input_shape[0])*(width-input_shape[1])        
     return patches
 
 def generate_prediction_patchwise(data,fprop,batch_size=100):
@@ -34,29 +34,40 @@ def generate_prediction_patchwise(data,fprop,batch_size=100):
         image_patches = makepatches(image)
         result_patches = generate_prediction(image_patches,fprop,batch_size=100)
         result_patches = np.array(result_patches).reshape(len(result_patches),2)
-        result_image = result_patches.reshape(height-128,width-64,2)
+        result_image = result_patches.reshape(height-input_shape[0],width-input_shape[1],2)
 
         results.append(result_image)
 
     return results
 
+def prepare_batch(batch,axes,batch_size=100):
 
-def generate_prediction(data,fprop,batch_size=100):
-  
-    batches = int(numpy.ceil(data.shape[0] / float(batch_size)))
-    results = []
-    for b in xrange(batches):
-        batch = data[b * batch_size:(b + 1) * batch_size]
-        #batch = batch.swapaxes(0, 3).copy()
-
+    if axes == ('c',0,1,'b'):
+        batch = batch.swapaxes(0, 3).copy()
+        num_samples = batch.shape[3]      
+        if num_samples < batch_size:
+            buffer_batch = np.zeros((batch.shape[0],batch.shape[1],batch.shape[2],batch_size),dtype=np.float32)
+            buffer_batch[:,:,:,0:num_samples] = batch
+            batch = buffer_batch
+    elif axes == ('b',0,1,'c'):
         num_samples = batch.shape[0]      
         if num_samples < batch_size:
             buffer_batch = np.zeros((batch_size,batch.shape[1],batch.shape[2],batch.shape[3]),dtype=np.float32)
             buffer_batch[0:num_samples,:,:,:] = batch
             batch = buffer_batch
 
+
+    return (batch,num_samples)
+
+def generate_prediction(data,fprop,batch_size=100):
+    axes = model.input_space.axes
+    batches = int(numpy.ceil(data.shape[0] / float(batch_size)))
+    results = []
+    for b in xrange(batches):
+        batch = data[b * batch_size:(b + 1) * batch_size]
+        #batch = batch.swapaxes(0, 3).copy()
+        batch,num_samples = prepare_batch(batch,axes,batch_size=100)
         results_batch = fprop(batch)
-        pdb.set_trace()
         if num_samples < batch_size:
             results_batch = results_batch[0:num_samples,...]
 
@@ -105,12 +116,12 @@ if __name__ == "__main__":
         os.makedirs(result_path)
 
     model = cPickle.load(args.model)
-    #del model.layers[-1]
-    #num_channels = model.input_space.num_channels
     #model.layers[0].input_space.shape = (240,320)
     #model.layers[0].desired_space.shape = (240, 320)   
+    pdb.set_trace()
     X = model.get_input_space().make_theano_batch()
     fprop = theano.function([X], model.fprop(X))
+    input_shape = model.input_space.shape
     #theano.printing.debugprint(f)
     #fprop_input_shape = model.get_input_space().shape
     testdata,name_testdata = load_dataset(path_testset)
