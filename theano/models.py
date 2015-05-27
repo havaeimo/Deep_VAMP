@@ -156,7 +156,7 @@ class LeNetConvLayer(object):
 
 class OutputLayer(object):
 
-    def __init__(self, input, rng, n_in, n_out, W=None, b=None):
+    def __init__(self, input, rng, filter_shape, image_shape,n_classes):
 
         h = self.LeNetConvLayer( rng, input, filter_shape, image_shape, activation=None)
         #change the dimensionality order in the tensor ('b','c',,0,1) -> ('b',0,1,'c'), so it can be used by channel_softmax
