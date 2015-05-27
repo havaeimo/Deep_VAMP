@@ -167,7 +167,7 @@ class OutputLayer(object):
             rval = e_tensorb01c /e_tensorb01c.sum(axis=3, keepdims=True)
             return rval
 
-        self.out = softmax()
+        self.out = softmax(h_b01c)
         self.params = [self.W, self.b]
 
 
@@ -191,7 +191,7 @@ class Cost(object):
         assert log_prob_of.ndim == 1
         rval = log_prob_of.mean()
 
-        return  - rval
+        self.out = - rval
 
 
 
