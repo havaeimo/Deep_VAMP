@@ -14,9 +14,9 @@ class DeepVamp(object):
     	#input_size = output_size = dataset['input_size']
     	self.rng = np.random.mtrand.RandomState(random_seed)
 
-    	self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(3,3,5,5), image_shape=(100,3,32,32), activation=None, pool_size=(4, 4), pool_stride=(1,1))]
+    	self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(3,3,5,5), image_shape=(100,3,32,32), activation=T.tanh, pool_size=(4, 4), pool_stride=(1,1))]
 
-    	self.layers += models.OutputLayer(input=self.layers[-1].out, filter_shape=(3,2,21,21), image_shape=(21,21),n_classes=2)
+    	self.layers += models.OutputLayer(input=self.layers[-1].out, filter_shape=(2,3,21,21), image_shape=(100,3,21,21),n_classes=2)
 
     	cost_obj = models.Cost(self.layers[-1].out, target)
     	self.cost = cost_obj.out
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     #                    help='Number of channels in the dataset.'),
     #args = parser.parse_args()
     #path_testset = self.testset
-    x = T.matrix('x') 
+    x = T.tensor4('x') 
     path_testset = '/home/local/USHERBROOKE/havm2701/data/DBFrames'
     batch_size = 100
     train = VAMP()

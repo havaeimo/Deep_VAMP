@@ -2,7 +2,7 @@ import theano
 from theano import tensor as T
 from theano.tensor.nnet import conv
 import numpy
-
+from theano.tensor.signal import downsample
 
 class LeNetConvPoolLayer(object):
     """Pool Layer of a convolutional network """
@@ -39,7 +39,7 @@ class LeNetConvPoolLayer(object):
         # "num output feature maps * filter height * filter width" /
         #   pooling size
         fan_out = (filter_shape[0] * numpy.prod(filter_shape[2:]) /
-                   numpy.prod(poolsize))
+                   numpy.prod(pool_size))
         # initialize weights with random weights
         W_bound = numpy.sqrt(6. / (fan_in + fan_out))
         self.W = theano.shared(
@@ -66,7 +66,7 @@ class LeNetConvPoolLayer(object):
         pooled_out = downsample.max_pool_2d(
             input=conv_out,
             ds=pool_size,
-            st=pool_stride,
+            #st=pool_stride, needs a theano update
             ignore_border=True
         )
 
@@ -74,7 +74,7 @@ class LeNetConvPoolLayer(object):
         # reshape it to a tensor of shape (1, n_filters, 1, 1). Each bias will
         # thus be broadcasted across mini-batches and feature map
         # width & height
-        self.output = activation(pooled_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+        self.out = activation(pooled_out + self.b.dimshuffle('x', 0, 'x', 'x'))
 
         # store parameters of this layer
         self.params = [self.W, self.b]
