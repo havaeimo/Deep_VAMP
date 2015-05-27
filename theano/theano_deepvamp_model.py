@@ -16,7 +16,7 @@ class DeepVamp(object):
 
     	self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(3,3,5,5), image_shape=(100,3,32,32), activation=T.tanh, pool_size=(4, 4), pool_stride=(1,1))]
 
-    	self.layers += models.OutputLayer(input=self.layers[-1].out, filter_shape=(2,3,21,21), image_shape=(100,3,21,21),n_classes=2)
+    	self.layers += models.OutputLayer(input=self.layers[-1].out, filter_shape=(2,3,21,21), image_shape=(100,3,21,21))
 
     	cost_obj = models.Cost(self.layers[-1].out, target)
     	self.cost = cost_obj.out
