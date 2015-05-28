@@ -196,5 +196,6 @@ class Cost(object):
 
 
 
-        
+def relu(x):
+    return theano.tensor.switch(x<0, 0, x)        
         

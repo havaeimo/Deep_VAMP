@@ -1,5 +1,6 @@
 import numpy
 import models
+from models import relu
 from deep_vamp import VAMP
 import argparse
 import pdb
@@ -106,7 +107,6 @@ if __name__ == "__main__":
     dataset ={}
     dataset['train'] = train
     dataset['valid'] = valid
-    pdb.set_trace()
     classifier = DeepVamp(dataset,random_seed=1234)
 
     # pdb.set_trace()
@@ -157,12 +157,13 @@ if __name__ == "__main__":
                 this_validation_loss = numpy.mean(validation_losses)
 
                 print(
-                    'epoch %i, minibatch %i/%i, validation error %f %%' %
+                    'epoch %i, minibatch %i/%i, validation error %f %%, training error %f %%' %
                     (
                         epoch,
                         minibatch_index + 1,
                         classifier.n_train_batches,
-                        this_validation_loss * 100.
+                        this_validation_loss * 100.,
+                        minibatch_avg_cost 
                     )
                 )
 
