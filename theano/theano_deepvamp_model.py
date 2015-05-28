@@ -10,7 +10,7 @@ import theano
 
 class DeepVamp(object):
 
-    def __init__(self, input, random_seed,learning_rate=0.01, hiddensize=[500,100]):
+    def __init__(self, input,target, random_seed,learning_rate=0.01, hiddensize=[500,100]):
     	  # the data is presented as rasterized images
     	  # the labels are presented as 1D vector of
 
@@ -19,7 +19,7 @@ class DeepVamp(object):
     	self.learning_rate = learning_rate
     	self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(3,3,5,5), image_shape=(100,3,32,32), activation=T.tanh, pool_size=(4, 4), pool_stride=(1,1))]
 
-    	self.layers += [models.OutputLayer(input=self.layers[-1].out, rng=self.rng,filter_shape=(2,3,21,21), image_shape=(100,3,21,21))]
+    	self.layers += [models.OutputLayer(input=self.layers[-1].out, rng=self.rng,filter_shape=(2,3,7,7), image_shape=(100,3,7,7))]
 
     	cost_obj = models.Cost(self.layers[-1].out, target)
     	self.cost = cost_obj.out
@@ -78,6 +78,8 @@ if __name__ == "__main__":
     #args = parser.parse_args()
     #path_testset = self.testset
     x = T.tensor4('x')
+    y = T.matrix('y')
+
     target = T.matrix('target')
     index = T.lscalar() 
     path_testset = '/home/local/USHERBROOKE/havm2701/data/DBFrames'
@@ -85,17 +87,19 @@ if __name__ == "__main__":
     train = VAMP()
     test_x = train.X[:100,:].reshape(100,3,32,32)
 
-    test_set_y = train.y[:100,:]
-
-    classifier = DeepVamp(input=x,random_seed=1234)
+    test_y = train.y[:100,:]
+    pdb.set_trace()
+    classifier = DeepVamp(input=x,target=y,random_seed=1234)
     test_set_x = theano.shared(numpy.asarray(test_x,dtype=theano.config.floatX),borrow=True)   
+    test_set_y = theano.shared(numpy.asarray(test_y,dtype=theano.config.floatX),borrow=True)
     test_model = theano.function(
     inputs=[index],
-    outputs=classifier.layers[-2].out,
+    outputs=classifier.cost,
     givens={
         x: test_set_x[index * batch_size:(index + 1) * batch_size],
-        #y: test_set_y[index * batch_size:(index + 1) * batch_size]
+        y: test_set_y[index * batch_size:(index + 1) * batch_size]
     }
     )
     # pdb.set_trace()
-    print test_model(0)
+    print test_model(0).shape
+    pdb.set_trace()
