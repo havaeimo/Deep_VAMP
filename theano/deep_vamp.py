@@ -62,6 +62,7 @@ class VAMP(DenseDesignMatrix):
             img = Image.open(join(base_dir,f))
             img = img.resize((image_resize[1],image_resize[0]),PIL.Image.ANTIALIAS)
             img_npy = np.array(img,dtype='float32')
+            self.nb_channels = img_npy.shape[-1]
             #if img_npy.shape[2] == 3:
             #    img_npy = img_npy.swapaxes(0,2)
             img_npy = img_npy.flatten()
@@ -117,9 +118,11 @@ class VAMP(DenseDesignMatrix):
 
         super(VAMP, self).__init__(X=X, y=y)
 
-
-
-
+    def get_reshaped_images(self):
+        self.X = self.X.reshape(-1,self.image_resize[0],self.image_resize[1],self.nb_channels)
+        #self.y = self.y 
+        return self
+        
 class real_VAMP(DenseDesignMatrix):
     """
     TODO

@@ -7,20 +7,34 @@ import os
 import theano.tensor as T
 import numpy as np
 import theano
+import time
 
 class DeepVamp(object):
-
-    def __init__(self, input,target, random_seed,learning_rate=0.01, hiddensize=[500,100]):
+    def __init__(self, dataset, random_seed,learning_rate=0.001, hiddensize=[500,100],batch_size=100):
     	  # the data is presented as rasterized images
     	  # the labels are presented as 1D vector of
-
+        
     	#input_size = output_size = dataset['input_size']
+            
+        input = T.tensor4('input')
+        target = T.matrix('target')
+        
+        train = dataset['train']
+        valid = dataset['valid']
+        train_x = train.X
+        train_x = train_x.transpose(0,3,1,2)
+        valid_x = valid.X
+        valid_x = valid_x.transpose(0,3,1,2)
+        valid_y = valid.y
+        train_y = train.y     
+
     	self.rng = np.random.mtrand.RandomState(random_seed)
     	self.learning_rate = learning_rate
+        
+        #Build Model
     	self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(3,3,5,5), image_shape=(100,3,32,32), activation=T.tanh, pool_size=(4, 4), pool_stride=(1,1))]
-
     	self.layers += [models.OutputLayer(input=self.layers[-1].out, rng=self.rng,filter_shape=(2,3,7,7), image_shape=(100,3,7,7))]
-
+ 
     	cost_obj = models.Cost(self.layers[-1].out, target)
     	self.cost = cost_obj.out
 
@@ -31,36 +45,38 @@ class DeepVamp(object):
         parameters_gradiants = T.grad(self.cost, layer_parameters)    
         updates = []
         for param, param_gradiant in zip(layer_parameters, parameters_gradiants):
-            updates += (param, param - self.learning_rate * param_gradiant)
+            updates += [(param, param - self.learning_rate * param_gradiant)]
 
 
-        #self.train = theano.function([input],cost, updates=updates)    
+        #self.train = theano.function([input],cost, updates=updates)
+        train_set_x = theano.shared(numpy.asarray(train_x,dtype=theano.config.floatX),borrow=True)   
+        train_set_y = theano.shared(numpy.asarray(train_y,dtype=theano.config.floatX),borrow=True)
+        valid_set_x = theano.shared(numpy.asarray(valid_x,dtype=theano.config.floatX),borrow=True)
+        valid_set_y = theano.shared(numpy.asarray(valid_y,dtype=theano.config.floatX),borrow=True)     
+        #train_set_x = train_set_x.dimshuffle(0,3,1,2)
+        #valid_set_x = valid_set_x.dimshuffle(0,3,1,2)
 
-'''
-        self.train_model = theano.function(
-        [index],
-        cost,
+        self.n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
+        self.n_valid_batches = valid_set_x.get_value(borrow=True).shape[0] / batch_size
+        
+        self.train = theano.function(
+        inputs=[index],
+        outputs=self.cost,
         updates=updates,
         givens={
-            x: train_set_x[index * batch_size: (index + 1) * batch_size],
-            y: train_set_y[index * batch_size: (index + 1) * batch_size]
+            input: train_set_x[index * batch_size:(index + 1) * batch_size],
+            target: train_set_y[index * batch_size:(index + 1) * batch_size]
         }
-    )
+        )
 
-    
-        index = T.lscalar()
-        self.learn = theano.function(name='learn',
-                                     inputs=[index],
-                                     outputs=loss,
-                                     updates=updates,
-                                     givens={input: dataset['train']['data'][index * batch_size:(index + 1) * batch_size], target: dataset['train']['target'][index * batch_size:(index + 1) * batch_size]}) 
-    
-
-
-        self.use = theano.function(name='use',
-                                   inputs=[input],
-                                   outputs=cost) 
-    '''
+        self.valid = theano.function(
+        inputs=[index],
+        outputs=self.cost,
+        givens={
+            input: valid_set_x[index * batch_size:(index + 1) * batch_size],
+            target: valid_set_y[index * batch_size:(index + 1) * batch_size]
+        }
+        )
 
 if __name__ == "__main__":
 
@@ -77,29 +93,109 @@ if __name__ == "__main__":
     #                    help='Number of channels in the dataset.'),
     #args = parser.parse_args()
     #path_testset = self.testset
-    x = T.tensor4('x')
-    y = T.matrix('y')
 
-    target = T.matrix('target')
+
+
     index = T.lscalar() 
     path_testset = '/home/local/USHERBROOKE/havm2701/data/DBFrames'
     batch_size = 100
-    train = VAMP()
-    test_x = train.X[:100,:].reshape(100,3,32,32)
+    train = VAMP(start=0,stop=10000)
+    valid = VAMP(start=10000,stop=12000)
+    valid = valid.get_reshaped_images()
+    train = train.get_reshaped_images()
+    dataset ={}
+    dataset['train'] = train
+    dataset['valid'] = valid
+    pdb.set_trace()
+    classifier = DeepVamp(dataset,random_seed=1234)
 
-    test_y = train.y[:100,:]
-    pdb.set_trace()
-    classifier = DeepVamp(input=x,target=y,random_seed=1234)
-    test_set_x = theano.shared(numpy.asarray(test_x,dtype=theano.config.floatX),borrow=True)   
-    test_set_y = theano.shared(numpy.asarray(test_y,dtype=theano.config.floatX),borrow=True)
-    test_model = theano.function(
-    inputs=[index],
-    outputs=classifier.cost,
-    givens={
-        x: test_set_x[index * batch_size:(index + 1) * batch_size],
-        y: test_set_y[index * batch_size:(index + 1) * batch_size]
-    }
-    )
     # pdb.set_trace()
-    print test_model(0).shape
-    pdb.set_trace()
+    classifier.train(0).shape
+    #pdb.set_trace()
+
+
+
+
+
+   ###############
+    # TRAIN MODEL #
+    ###############
+    print '... training'
+
+    # early-stopping parameters
+    patience = 10000  # look as this many examples regardless
+    patience_increase = 2  # wait this much longer when a new best is
+                           # found
+    improvement_threshold = 0.995  # a relative improvement of this much is
+    #n_train_batches = 20                               # considered significant
+    validation_frequency = min(classifier.n_train_batches, patience / 2)
+                                  # go through this many
+                                  # minibatche before checking the network
+                                  # on the validation set; in this case we
+                                  # check every epoch
+    
+    best_validation_loss = numpy.inf
+    best_iter = 0
+    test_score = 0.
+    start_time = time.clock()
+    n_epochs = 100
+    epoch = 0
+    done_looping = False
+   
+    while (epoch < n_epochs) and (not done_looping):
+        epoch = epoch + 1
+        for minibatch_index in xrange(classifier.n_train_batches):
+
+            minibatch_avg_cost = classifier.train(minibatch_index)
+            # iteration number
+            iter = (epoch - 1) * classifier.n_train_batches + minibatch_index
+
+            if (iter + 1) % validation_frequency == 0:
+                # compute zero-one loss on validation set
+                validation_losses = [classifier.valid(i) for i
+                                     in xrange(classifier.n_valid_batches)]
+                this_validation_loss = numpy.mean(validation_losses)
+
+                print(
+                    'epoch %i, minibatch %i/%i, validation error %f %%' %
+                    (
+                        epoch,
+                        minibatch_index + 1,
+                        classifier.n_train_batches,
+                        this_validation_loss * 100.
+                    )
+                )
+
+                # if we got the best validation score until now
+                if this_validation_loss < best_validation_loss:
+                    #improve patience if loss improvement is good enough
+                    if (
+                        this_validation_loss < best_validation_loss *
+                        improvement_threshold
+                    ):
+                        patience = max(patience, iter * patience_increase)
+
+                    best_validation_loss = this_validation_loss
+                    best_iter = iter
+
+                    # test it on the test set
+             #       test_losses = [test_model(i) for i
+             #                      in xrange(n_test_batches)]
+             #       test_score = numpy.mean(test_losses)
+             # 
+             #       print(('     epoch %i, minibatch %i/%i, test error of '
+             #              'best model %f %%') %
+             #             (epoch, minibatch_index + 1, n_train_batches,
+             #              test_score * 100.))
+
+            if patience <= iter:
+                done_looping = True
+                break
+
+    end_time = time.clock()
+    print(('Optimization complete. Best validation score of %f %% '
+           'obtained at iteration %i, with test performance %f %%') %
+          (best_validation_loss * 100., best_iter + 1, test_score * 100.))
+    print >> sys.stderr, ('The code for file ' +
+                          os.path.split(__file__)[1] +
+                          ' ran for %.2fm' % ((end_time - start_time) / 60.))
