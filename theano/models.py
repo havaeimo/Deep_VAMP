@@ -114,7 +114,7 @@ class LeNetConvLayer(object):
         # "num output feature maps * filter height * filter width" /
         #   pooling size
         fan_out = (filter_shape[0] * numpy.prod(filter_shape[2:]) /
-                   numpy.prod(poolsize))
+                   numpy.prod((1,1)))
         # initialize weights with random weights
         W_bound = numpy.sqrt(6. / (fan_in + fan_out))
         self.W = theano.shared(
@@ -143,9 +143,9 @@ class LeNetConvLayer(object):
         # thus be broadcasted across mini-batches and feature map
         # width & height
         if activation is not None:
-            self.output = activation(h)
+            self.out = activation(h)
         else:
-            self.output = h
+            self.out = h
 
         # store parameters of this layer
         self.params = [self.W, self.b]        
@@ -156,11 +156,12 @@ class LeNetConvLayer(object):
 
 class OutputLayer(object):
 
-    def __init__(self, input, rng, filter_shape, image_shape,n_classes):
+    def __init__(self, input, rng, filter_shape, image_shape):
 
-        h = self.LeNetConvLayer( rng, input, filter_shape, image_shape, activation=None)
+        h = LeNetConvLayer( rng, input, filter_shape, image_shape, activation=None)
         #change the dimensionality order in the tensor ('b','c',,0,1) -> ('b',0,1,'c'), so it can be used by channel_softmax
-        h_b01c = T.dimshuffle(0,2,3,1)
+        h_bc01 = h.out
+        h_b01c = h_bc01.dimshuffle(0,2,3,1)
 
         def softmax(tensorb01c):
             e_tensorb01c = T.exp(tensorb01c - tensorb01c.max(axis=3, keepdims=True))
@@ -168,7 +169,7 @@ class OutputLayer(object):
             return rval
 
         self.out = softmax(h_b01c)
-        self.params = [self.W, self.b]
+        self.params = [h.W, h.b]
 
 
 class Cost(object):
@@ -178,10 +179,10 @@ class Cost(object):
                                       input.shape[1]*
                                       input.shape[2],
                                       input.shape[3]),ndim=2)
-        Y = target.reshape(shape=( target.shape[0]*
-                                           target.shape[1]*
-                                           target.shape[2],
-                                           target.shape[3]),ndim=2)
+        Y = target.reshape(shape=( input.shape[0]*
+                                      input.shape[1]*
+                                      input.shape[2],
+                                      input.shape[3]),ndim=2)
         
        
         z = z - z.max(axis=1).dimshuffle(0, 'x')

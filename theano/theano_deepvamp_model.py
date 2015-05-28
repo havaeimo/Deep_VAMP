@@ -1,3 +1,4 @@
+import numpy
 import models
 from deep_vamp import VAMP
 import argparse
@@ -5,18 +6,20 @@ import pdb
 import os
 import theano.tensor as T
 import numpy as np
+import theano
+
 class DeepVamp(object):
 
-    def __init__(self, input, random_seed, hiddensize=[500,100]):
+    def __init__(self, input, random_seed,learning_rate=0.01, hiddensize=[500,100]):
     	  # the data is presented as rasterized images
-    	target = T.matrix('target')  # the labels are presented as 1D vector of
+    	  # the labels are presented as 1D vector of
 
     	#input_size = output_size = dataset['input_size']
     	self.rng = np.random.mtrand.RandomState(random_seed)
-
+    	self.learning_rate = learning_rate
     	self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(3,3,5,5), image_shape=(100,3,32,32), activation=T.tanh, pool_size=(4, 4), pool_stride=(1,1))]
 
-    	self.layers += models.OutputLayer(input=self.layers[-1].out, filter_shape=(2,3,21,21), image_shape=(100,3,21,21))
+    	self.layers += [models.OutputLayer(input=self.layers[-1].out, rng=self.rng,filter_shape=(2,3,21,21), image_shape=(100,3,21,21))]
 
     	cost_obj = models.Cost(self.layers[-1].out, target)
     	self.cost = cost_obj.out
@@ -25,7 +28,7 @@ class DeepVamp(object):
         for i in range(2):
             layer_parameters += self.layers[i].params
 
-        parameters_gradiants = T.grad(cost, layer_parameters)    
+        parameters_gradiants = T.grad(self.cost, layer_parameters)    
         updates = []
         for param, param_gradiant in zip(layer_parameters, parameters_gradiants):
             updates += (param, param - self.learning_rate * param_gradiant)
@@ -74,24 +77,25 @@ if __name__ == "__main__":
     #                    help='Number of channels in the dataset.'),
     #args = parser.parse_args()
     #path_testset = self.testset
-    x = T.tensor4('x') 
+    x = T.tensor4('x')
+    target = T.matrix('target')
+    index = T.lscalar() 
     path_testset = '/home/local/USHERBROOKE/havm2701/data/DBFrames'
     batch_size = 100
     train = VAMP()
-    train_set_x = train.X[:100,:].reshape(100,3,32,32)
+    test_x = train.X[:100,:].reshape(100,3,32,32)
 
-    train_set_y = train.y[:100,:]
+    test_set_y = train.y[:100,:]
 
     classifier = DeepVamp(input=x,random_seed=1234)
-    pdb.set_trace()
-
+    test_set_x = theano.shared(numpy.asarray(test_x,dtype=theano.config.floatX),borrow=True)   
     test_model = theano.function(
     inputs=[index],
-    outputs=classifier.layers[-1].out,
+    outputs=classifier.layers[-2].out,
     givens={
         x: test_set_x[index * batch_size:(index + 1) * batch_size],
         #y: test_set_y[index * batch_size:(index + 1) * batch_size]
     }
     )
-
-    test_model(0)
+    # pdb.set_trace()
+    print test_model(0)
