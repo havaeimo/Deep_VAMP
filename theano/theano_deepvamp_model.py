@@ -11,12 +11,12 @@ import theano
 import time
 
 class DeepVamp(object):
-    def __init__(self, dataset, random_seed,learning_rate=0.001, hidden_size=[3],filter_shapes=[(5,5)],pool_size=[(4,4)],batch_size=100):
+    def __init__(self, dataset, random_seed,learning_rate=0.001, hidden_size=[3],filter_shapes=[(5,5)],pool_size=[(4,4)],activation=[T.tanh],batch_size=100):
     	  # the data is presented as rasterized images
     	  # the labels are presented as 1D vector of
         
     	#input_size = output_size = dataset['input_size']
-        assert len(hiddensize) == len(filter_shapes)
+        assert len(hidden_size) == len(filter_shapes)
     
         input = T.tensor4('input')
         target = T.matrix('target')
@@ -37,16 +37,17 @@ class DeepVamp(object):
         
         #Build Model
       
-    	self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(hidden_size[0],nb_channels,fiter_shapes[0][0],filter_shapes[0][1]), image_shape=(batch_size,nb_channels,image_size[0],image_size[1]), activation=activation[0], pool_size=pool_size[0], pool_stride=(1,1))]
+    	self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(hidden_size[0],nb_channels,filter_shapes[0][0],filter_shapes[0][1]), image_shape=(batch_size,nb_channels,image_size[0],image_size[1]), activation=activation[0], pool_size=pool_size[0], pool_stride=(1,1))]
         for h_id in range(len(hidden_size)-1):
                  nb_channels_h = self.layers[-1].nb_filters
                  featuremap_shape = self.layers[-1].out.shape[2,:]
-                 self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(hidden_size[h_id],nb_channels_h,fiter_shapes[h_id][0],filter_shapes[h_id][1]), image_shape=(batch_size,nb_channels_h,featuremap_shape[0],featuremap_shape[1]), activation=activation[h_id], pool_size=pool_size[h_id], pool_stride=(1,1))]
+                 self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(hidden_size[h_id],nb_channels_h,filter_shapes[h_id][0],filter_shapes[h_id][1]), image_shape=(batch_size,nb_channels_h,featuremap_shape[0],featuremap_shape[1]), activation=activation[h_id], pool_size=pool_size[h_id], pool_stride=(1,1))]
 
 
-         	self.layers += [models.OutputLayer(input=self.layers[-1].out, rng=self.rng,filter_shape=(2,3,7,7), image_shape=(100,3,7,7))]
+
  
-    	cost_obj = models.Cost(self.layers[-1].out, target)
+       self.layers += [models.OutputLayer(input=self.layers[-1].out, rng=self.rng,filter_shape=(2,3,7,7), image_shape=(100,3,7,7))]
+     	cost_obj = models.Cost(self.layers[-1].out, target)
     	self.cost = cost_obj.out
 
         layer_parameters = []
