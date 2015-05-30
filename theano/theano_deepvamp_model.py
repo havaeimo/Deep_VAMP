@@ -11,7 +11,7 @@ import theano
 import time
 
 class DeepVamp(object):
-    def __init__(self, dataset, random_seed,learning_rate=0.001, hidden_size=[3],filter_shapes=[(5,5)],pool_size=[(4,4)],activation=[T.tanh],batch_size=100):
+    def __init__(self, dataset, random_seed,learning_rate, hidden_size,filter_shapes,pool_size,pool_stride,activation,batch_size=100):
     	  # the data is presented as rasterized images
     	  # the labels are presented as 1D vector of
         
@@ -20,7 +20,7 @@ class DeepVamp(object):
     
         input = T.tensor4('input')
         target = T.matrix('target')
-        
+        nb_classes = dataset['nb_classes']
         train = dataset['train']
         valid = dataset['valid']
         train_x = train.X
@@ -31,22 +31,35 @@ class DeepVamp(object):
         train_y = train.y     
         image_size = train_x.shape[2:]
         nb_channels = train_x.shape[1]
-
+        
     	self.rng = np.random.mtrand.RandomState(random_seed)
     	self.learning_rate = learning_rate
         
         #Build Model
-      
+        def get_input_shape(layer):
+            filter_shape = layer.filter_shape[2:]
+            image_shape = layer.image_shape[2:]
+            pool_size = layer.pool_size
+            pool_stride = layer.pool_stride
+            conv_stride = layer.conv_stride
+            def reduction(image,kernel,stride):
+                return (image - kernel)/stride +1
+            post_conv = (reduction(image_shape[0],filter_shape[0],conv_stride[0]) ,reduction(image_shape[1],filter_shape[1],conv_stride[1]))
+            post_pool = (reduction(post_conv[0],pool_size[0],pool_stride[0]) ,reduction(post_conv[1],pool_size[1],pool_stride[1])) 
+            
+            return post_pool      
+
+
     	self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(hidden_size[0],nb_channels,filter_shapes[0][0],filter_shapes[0][1]), image_shape=(batch_size,nb_channels,image_size[0],image_size[1]), activation=activation[0], pool_size=pool_size[0], pool_stride=(1,1))]
-        for h_id in range(len(hidden_size)-1):
-                 nb_channels_h = self.layers[-1].nb_filters
-                 featuremap_shape = self.layers[-1].out.shape[2,:]
-                 self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(hidden_size[h_id],nb_channels_h,filter_shapes[h_id][0],filter_shapes[h_id][1]), image_shape=(batch_size,nb_channels_h,featuremap_shape[0],featuremap_shape[1]), activation=activation[h_id], pool_size=pool_size[h_id], pool_stride=(1,1))]
+        for h_id in range(1,len(hidden_size)-1):
+                 nb_channels_h = self.layers[-1].filter_shape[0]
+                 featuremap_shape = get_input_shape(self.layers[-1])
+                 self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(hidden_size[h_id],hidden_size[h_id-1],filter_shapes[h_id][0],filter_shapes[h_id][1]), image_shape=(batch_size,hidden_size[h_id-1],featuremap_shape[0],featuremap_shape[1]), activation=activation[h_id], pool_size=pool_size[h_id], pool_stride=pool_stride[h_id])]
 
-
-
- 
-       self.layers += [models.OutputLayer(input=self.layers[-1].out, rng=self.rng,filter_shape=(2,3,7,7), image_shape=(100,3,7,7))]
+        output_filter_shape = get_input_shape(self.layers[-1])
+        nb_channels_out = self.layers[-1].filter_shape[0]
+        final_h_shape = output_filter_shape
+        self.layers += [models.OutputLayer(input=self.layers[-1].out, rng=self.rng,filter_shape=(nb_classes,nb_channels_out,output_filter_shape[0],output_filter_shape[1]), image_shape=(batch_size,nb_channels_out,final_h_shape[0],final_h_shape[1]))]
      	cost_obj = models.Cost(self.layers[-1].out, target)
     	self.cost = cost_obj.out
 
@@ -111,14 +124,23 @@ if __name__ == "__main__":
     index = T.lscalar() 
     path_testset = '/home/local/USHERBROOKE/havm2701/data/DBFrames'
     batch_size = 100
-    train = VAMP(start=0,stop=10000)
-    valid = VAMP(start=10000,stop=12000)
+    train = VAMP(start=0,stop=10000,image_resize=[32,32])
+    valid = VAMP(start=10000,stop=12000,image_resize=[32,32])
     valid = valid.get_reshaped_images()
     train = train.get_reshaped_images()
     dataset ={}
     dataset['train'] = train
     dataset['valid'] = valid
-    classifier = DeepVamp(dataset,random_seed=1234)
+    dataset['nb_classes'] = train.nb_classes
+    classifier = DeepVamp(dataset,random_seed=1234,
+                          learning_rate=0.01,
+                          hidden_size =[64],
+                          filter_shapes=[(4,4)],
+                          pool_size=[(4,4)],
+                          pool_stride=[(2,2)],
+                          activation=[T.tanh],
+                          batch_size=100
+                          )
 
     # pdb.set_trace()
     classifier.train(0).shape

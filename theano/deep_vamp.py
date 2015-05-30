@@ -83,7 +83,7 @@ class VAMP(DenseDesignMatrix):
         assert X.max() == 255.
         assert X.min() == 0.
         self.center = center
-
+        self.nb_classes = 2
         if center:
             X -= 127.5
 
