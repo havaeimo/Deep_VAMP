@@ -50,8 +50,8 @@ class DeepVamp(object):
             return post_pool      
 
 
-    	self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(hidden_size[0],nb_channels,filter_shapes[0][0],filter_shapes[0][1]), image_shape=(batch_size,nb_channels,image_size[0],image_size[1]), activation=activation[0], pool_size=pool_size[0], pool_stride=(1,1))]
-        for h_id in range(1,len(hidden_size)-1):
+    	self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(hidden_size[0],nb_channels,filter_shapes[0][0],filter_shapes[0][1]), image_shape=(batch_size,nb_channels,image_size[0],image_size[1]), activation=activation[0], pool_size=pool_size[0], pool_stride=pool_stride[0])]
+        for h_id in range(1,len(hidden_size)):
                  nb_channels_h = self.layers[-1].filter_shape[0]
                  featuremap_shape = get_input_shape(self.layers[-1])
                  self.layers = [models.LeNetConvPoolLayer(self.rng, input, filter_shape=(hidden_size[h_id],hidden_size[h_id-1],filter_shapes[h_id][0],filter_shapes[h_id][1]), image_shape=(batch_size,hidden_size[h_id-1],featuremap_shape[0],featuremap_shape[1]), activation=activation[h_id], pool_size=pool_size[h_id], pool_stride=pool_stride[h_id])]
@@ -134,11 +134,11 @@ if __name__ == "__main__":
     dataset['nb_classes'] = train.nb_classes
     classifier = DeepVamp(dataset,random_seed=1234,
                           learning_rate=0.01,
-                          hidden_size =[64],
-                          filter_shapes=[(4,4)],
-                          pool_size=[(4,4)],
-                          pool_stride=[(2,2)],
-                          activation=[T.tanh],
+                          hidden_size =[64,64],
+                          filter_shapes=[(4,4),(4,4)],
+                          pool_size=[(4,4),(2,2)],
+                          pool_stride=[(1,1),(1,1)],
+                          activation=[T.tanh,T.tanh],
                           batch_size=100
                           )
 
