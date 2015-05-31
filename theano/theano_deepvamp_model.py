@@ -11,7 +11,7 @@ import theano
 import time
 import utilities
 from Deep_vamp_model import DeepVamp
-
+from scipy.misc import imsave
 if __name__ == "__main__":
 
     #parser = argparse.ArgumentParser(description='Generate the DICE score for a BrainSet')
@@ -33,10 +33,13 @@ if __name__ == "__main__":
     
     path_testset = '/home/local/USHERBROOKE/havm2701/data/DBFrames'
     batch_size = 100
-    train = VAMP(start=0,stop=10000,image_resize=[32,32])
-    valid = VAMP(start=10000,stop=12000,image_resize=[32,32])
+    train = VAMP(start=0,stop=10000,image_resize=[128,64],toronto_prepro=True)
+    valid = VAMP(start=10000,stop=12000,image_resize=[128,64],toronto_prepro=True)
     valid = valid.get_reshaped_images()
     train = train.get_reshaped_images()
+    ex = train.X[0,...]
+    imsave('test.png', ex)
+    pdb.set_trace()
     dataset ={}
     dataset['train'] = train
     dataset['valid'] = valid
@@ -56,7 +59,7 @@ if __name__ == "__main__":
     #pdb.set_trace()
 
 
-    utilities.train(classifier)
+    utilities.train(classifier,max_epochs=200)
 
 
 

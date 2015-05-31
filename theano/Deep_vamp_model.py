@@ -25,6 +25,10 @@ class DeepVamp(object):
         valid = dataset['valid']
         train_x = train.X
         train_x = train_x.transpose(0,3,1,2)
+        from scipy.misc import imsave
+        ex = train.X[0,0,:,:]
+        imsave('test_new.png', ex)
+        pdb.set_trace()
         valid_x = valid.X
         valid_x = valid_x.transpose(0,3,1,2)
         valid_y = valid.y

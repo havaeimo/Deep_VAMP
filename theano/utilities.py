@@ -9,7 +9,7 @@ import numpy as np
 import theano
 import time
 
-def train(classifier):
+def train(classifier,max_epochs):
 
    ###############
     # TRAIN MODEL #
@@ -31,16 +31,17 @@ def train(classifier):
     best_iter = 0
     test_score = 0.
     start_time = time.clock()
-    n_epochs = 100
+    n_epochs = max_epochs
     epoch = 0
     done_looping = False
    
     while (epoch < n_epochs) and (not done_looping):
         epoch = epoch + 1
         for minibatch_index in xrange(classifier.n_train_batches):
-
+            pdb.set_trace()
             minibatch_avg_cost = classifier.train(minibatch_index)
             # iteration number
+
             iter = (epoch - 1) * classifier.n_train_batches + minibatch_index
 
             if (iter + 1) % validation_frequency == 0:
@@ -50,7 +51,7 @@ def train(classifier):
                 this_validation_loss = numpy.mean(validation_losses)
 
                 print(
-                    'epoch %i, minibatch %i/%i, validation error %f %%, training error %f %%' %
+                    'epoch %i, minibatch %i/%i, validation error %f %%, training error last minibatch of epoch %f %%' %
                     (
                         epoch,
                         minibatch_index + 1,
