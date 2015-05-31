@@ -3,7 +3,7 @@ import models
 from models import relu
 from deep_vamp import VAMP
 import argparse
-import pdb
+
 import os
 import theano.tensor as T
 import numpy as np
@@ -37,9 +37,6 @@ if __name__ == "__main__":
     valid = VAMP(start=10000,stop=12000,image_resize=[128,64],toronto_prepro=True)
     valid = valid.get_reshaped_images()
     train = train.get_reshaped_images()
-    ex = train.X[0,...]
-    imsave('test.png', ex)
-    pdb.set_trace()
     dataset ={}
     dataset['train'] = train
     dataset['valid'] = valid

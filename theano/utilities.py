@@ -2,7 +2,6 @@ import numpy
 import models
 from models import relu
 import argparse
-import pdb
 import os
 import theano.tensor as T
 import numpy as np
@@ -38,7 +37,6 @@ def train(classifier,max_epochs):
     while (epoch < n_epochs) and (not done_looping):
         epoch = epoch + 1
         for minibatch_index in xrange(classifier.n_train_batches):
-            pdb.set_trace()
             minibatch_avg_cost = classifier.train(minibatch_index)
             # iteration number
 
