@@ -7,7 +7,7 @@ from theano.tensor.signal import downsample
 class LeNetConvPoolLayer(object):
     """Pool Layer of a convolutional network """
 
-    def __init__(self, rng, input, filter_shape, image_shape, activation=None, pool_size=(2, 2),conv_stride=(1,1),pool_stride=None):
+    def __init__(self, rng,layerIdx, input, filter_shape, image_shape, activation=None, pool_size=(2, 2),conv_stride=(1,1),pool_stride=None):
         """
         Allocate a LeNetConvPoolLayer with shared variable internal parameters.
 
@@ -36,6 +36,8 @@ class LeNetConvPoolLayer(object):
         self.pool_stride = pool_stride
         self.conv_stride = conv_stride
         self.pool_size = pool_size
+        self.layerIdx = layerIdx
+        self.activation = activation
         # there are "num input feature maps * filter height * filter width"
         # inputs to each hidden unit
         fan_in = numpy.prod(filter_shape[1:])
@@ -51,12 +53,13 @@ class LeNetConvPoolLayer(object):
                 rng.uniform(low=-W_bound, high=W_bound, size=filter_shape),
                 dtype=theano.config.floatX
             ),
+            name='W{}'.format(layerIdx),
             borrow=True
         )
 
         # the bias is a 1D tensor -- one bias per output feature map
         b_values = numpy.zeros((filter_shape[0],), dtype=theano.config.floatX)
-        self.b = theano.shared(value=b_values, borrow=True)
+        self.b = theano.shared(value=b_values,name='b{}'.format(layerIdx), borrow=True)
 
         # convolve input feature maps with filters
         conv_out = conv.conv2d(
@@ -78,7 +81,7 @@ class LeNetConvPoolLayer(object):
         # reshape it to a tensor of shape (1, n_filters, 1, 1). Each bias will
         # thus be broadcasted across mini-batches and feature map
         # width & height
-        self.out = activation(pooled_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+        self.out = self.activation(pooled_out + self.b.dimshuffle('x', 0, 'x', 'x'))
 
         # store parameters of this layer
         self.params = [self.W, self.b]
@@ -89,7 +92,7 @@ class LeNetConvPoolLayer(object):
 class LeNetConvLayer(object):
     """ Layer of a convolutional network """
 
-    def __init__(self, rng, input, filter_shape, image_shape, activation=None):
+    def __init__(self, layerIdx, rng, input, filter_shape, image_shape, activation=None):
         """
         Allocate a LeNetConvLayer with shared variable internal parameters.
 
@@ -110,7 +113,7 @@ class LeNetConvLayer(object):
 
         assert image_shape[1] == filter_shape[1]
         self.input = input
-
+        self.layerIdx = layerIdx
         # there are "num input feature maps * filter height * filter width"
         # inputs to each hidden unit
         fan_in = numpy.prod(filter_shape[1:])
@@ -126,11 +129,12 @@ class LeNetConvLayer(object):
                 rng.uniform(low=-W_bound, high=W_bound, size=filter_shape),
                 dtype=theano.config.floatX
             ),
+            name='W{}'.format(layerIdx), 
             borrow=True)
 
         # the bias is a 1D tensor -- one bias per output feature map
         b_values = numpy.zeros((filter_shape[0],), dtype=theano.config.floatX)
-        self.b = theano.shared(value=b_values, borrow=True)
+        self.b = theano.shared(value=b_values,name='b{}'.format(layerIdx), borrow=True)
 
         # convolve input feature maps with filters
         conv_out = conv.conv2d(
@@ -160,13 +164,13 @@ class LeNetConvLayer(object):
 
 class OutputLayer(object):
 
-    def __init__(self, input, rng, filter_shape, image_shape):
+    def __init__(self, layerIdx, input, rng, filter_shape, image_shape):
 
-        h = LeNetConvLayer( rng, input, filter_shape, image_shape, activation=None)
+        h = LeNetConvLayer(rng= rng,layerIdx=layerIdx, input=input, filter_shape=filter_shape, image_shape=image_shape, activation=None)
         #change the dimensionality order in the tensor ('b','c',,0,1) -> ('b',0,1,'c'), so it can be used by channel_softmax
         h_bc01 = h.out
         h_b01c = h_bc01.dimshuffle(0,2,3,1)
-
+        
         def softmax(tensorb01c):
             e_tensorb01c = T.exp(tensorb01c - tensorb01c.max(axis=3, keepdims=True))
             rval = e_tensorb01c /e_tensorb01c.sum(axis=3, keepdims=True)
@@ -174,7 +178,7 @@ class OutputLayer(object):
 
         self.out = softmax(h_b01c)
         self.params = [h.W, h.b]
-
+        self.layerIdx = h.layerIdx
 
 class Cost(object):
     def __init__(self, input, target):
@@ -200,6 +204,10 @@ class Cost(object):
 
 
 
+
 def relu(x):
     return theano.tensor.switch(x<0, 0, x)        
         
+def myReLu(z):
+    z = T.maximum(0.0, z)
+    return(z)

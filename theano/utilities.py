@@ -15,7 +15,7 @@ def train(classifier,max_epochs):
     ###############
     print '... training'
     # early-stopping parameters
-    patience = 10000  # look as this many examples regardless
+    patience =  max_epochs*classifier.n_train_batches #10000  # look as this many examples regardless
     patience_increase = 2  # wait this much longer when a new best is
                            # found
     improvement_threshold = 0.995  # a relative improvement of this much is
@@ -31,6 +31,7 @@ def train(classifier,max_epochs):
     test_score = 0.
     start_time = time.clock()
     n_epochs = max_epochs
+
     epoch = 0
     done_looping = False
    
@@ -83,12 +84,16 @@ def train(classifier,max_epochs):
 
             if patience <= iter:
                 done_looping = True
+
                 break
 
     end_time = time.clock()
+    '''
     print(('Optimization complete. Best validation score of %f %% '
            'obtained at iteration %i, with test performance %f %%') %
           (best_validation_loss * 100., best_iter + 1, test_score * 100.))
     print >> sys.stderr, ('The code for file ' +
                           os.path.split(__file__)[1] +
-                          ' ran for %.2fm' % ((end_time - start_time) / 60.))
+                          ' ran for %.2fm' % ((end_time - start_time) / 60.))'''
+
+    return classifier

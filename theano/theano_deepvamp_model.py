@@ -1,6 +1,6 @@
 import numpy
 import models
-from models import relu
+from models import myReLu
 from deep_vamp import VAMP
 import argparse
 
@@ -43,23 +43,30 @@ if __name__ == "__main__":
     dataset['nb_classes'] = train.nb_classes
     classifier = DeepVamp(dataset,random_seed=1234,
                           learning_rate=0.01,
-                          hidden_size =[64,32],
-                          filter_shapes=[(4,4),(2,2)],
+                          decrease_constant=0.95,
+                          hidden_size =[32,32],
+                          filter_shapes=[(5,5),(3,3)],
                           pool_size=[(4,4),(2,2)],
-                          pool_stride=[(2,2),(2,2)],
+                          pool_stride=[(4,4),(2,2)],
+                          update_rule = "rmsprop",
                           activation=[T.tanh,T.tanh],
                           batch_size=100
                           )
 
     # pdb.set_trace()
-    classifier.train(0).shape
+    #classifier.train(0).shape
     #pdb.set_trace()
+    test_dataset = train.X[:100,...]
+    #outt = classifier.use(test_dataset.transpose(0,3,1,2))
 
-
-    utilities.train(classifier,max_epochs=200)
-
-
-
+    classifier = utilities.train(classifier,max_epochs=5)
+    import pdb            
+    pdb.set_trace()
+    outt = classifier.use(test_dataset.transpose(0,3,1,2))
+    import cPickle
+    f = file('obj.save', 'wb')
+    cPickle.dump(classifier, f, protocol=cPickle.HIGHEST_PROTOCOL)
+    f.close()
 
 
 
