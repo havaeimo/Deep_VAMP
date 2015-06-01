@@ -44,12 +44,12 @@ if __name__ == "__main__":
     classifier = DeepVamp(dataset,random_seed=1234,
                           learning_rate=0.01,
                           decrease_constant=0.95,
-                          hidden_size =[32,32],
-                          filter_shapes=[(5,5),(3,3)],
-                          pool_size=[(4,4),(2,2)],
-                          pool_stride=[(4,4),(2,2)],
-                          update_rule = "rmsprop",
-                          activation=[T.tanh,T.tanh],
+                          hidden_size =[64],
+                          filter_shapes=[(5,5)],
+                          pool_size=[(4,4)],
+                          pool_stride=[(4,4)],
+                          update_rule = "None",
+                          activation=[T.tanh],
                           batch_size=100
                           )
 
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     test_dataset = train.X[:100,...]
     #outt = classifier.use(test_dataset.transpose(0,3,1,2))
 
-    classifier = utilities.train(classifier,max_epochs=5)
+    classifier = utilities.train(classifier,max_epochs=500)
     import pdb            
     pdb.set_trace()
     outt = classifier.use(test_dataset.transpose(0,3,1,2))
