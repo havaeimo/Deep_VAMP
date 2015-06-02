@@ -105,17 +105,19 @@ for h_id in range(1,len(nkerns)):
 #layer2_input = layers[-1].output.flatten(2)
 last_conv_fm_shape = models2.get_channel_shape(layers[-1])
 # construct a fully-connected sigmoidal layer
-layers += [models2.HiddenLayer(
+'''layers += [models2.HiddenLayer(
     rng,
     input=layers[-1].output.flatten(2),
     n_in=nkerns[-1] * last_conv_fm_shape[0] * last_conv_fm_shape[1],
     n_out=500,
     activation=T.tanh
-)]
-
+)]'''
+n_in = nkerns[-1] * last_conv_fm_shape[0] * last_conv_fm_shape[1]
 # classify the values of the fully-connected sigmoidal layer
-layers += [models2.LogisticRegression(input=layers[-1].output, n_in=500, n_out=10)]
-
+#layers += [models2.LogisticRegression(input=layers[-1].output.flatten(2), n_in=n_in, n_out=2)]
+layers += [models2.ChannelLogisticRegression(rng=rng, input=layers[-1].output,
+                                      filter_shape=(2,nkerns[-1],last_conv_fm_shape[0],last_conv_fm_shape[1]), 
+                                      image_shape =(batch_size,nkerns[-1],last_conv_fm_shape[0],last_conv_fm_shape[1]))]
 # the cost we minimize during training is the NLL of the model
 cost = layers[-1].negative_log_likelihood(y)
 
