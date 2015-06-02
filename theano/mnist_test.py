@@ -7,9 +7,9 @@ import gzip
 import os
 import sys
 import time
-
+import numpy as np
 import numpy
-
+from deep_vamp import VAMP
 import theano
 import theano.tensor as T
 
@@ -379,13 +379,33 @@ def get_channel_shape(layer):
 ################################################################################################
 ################################################################################################
 ################################################################################################
-
+'''
 batch_size = 100
 dataset = '/home/local/USHERBROOKE/havm2701/git.repos/Deep_VAMP/theano/mnist.pkl.gz'
 datasets = load_data(dataset)
 train_set_x, train_set_y = datasets[0]
 valid_set_x, valid_set_y = datasets[1]
 test_set_x, test_set_y = datasets[2]
+'''
+path_testset = '/home/local/USHERBROOKE/havm2701/data/DBFrames'
+batch_size = 100
+train = VAMP(start=0,stop=10000,image_resize=[28,28],toronto_prepro=True)
+valid = VAMP(start=10000,stop=12000,image_resize=[28,28],toronto_prepro=True)
+train_x = train.X 
+train_y = np.argmax(train.y,axis=1)
+valid_x = valid.X
+valid_y = np.argmax(valid.y,axis=1)
+test_x = valid.X
+test_y = np.argmax(valid.y,axis=1)
+#train_x=np.asarray(train_x,dtype='int32')
+#valid_x=np.asarray(valid_x,dtype='int32')
+#test_x=np.asarray(test_x,dtype='int32')
+train_set_x = theano.shared(numpy.asarray(train_x,dtype=theano.config.floatX),borrow=True)   
+train_set_y = theano.shared(numpy.asarray(train_y,dtype=np.int32),borrow=True)
+valid_set_x = theano.shared(numpy.asarray(valid_x,dtype=theano.config.floatX),borrow=True)
+valid_set_y = theano.shared(numpy.asarray(valid_y,dtype=np.int32),borrow=True)
+test_set_x = theano.shared(numpy.asarray(valid_x,dtype=theano.config.floatX),borrow=True)
+test_set_y = theano.shared(numpy.asarray(valid_y,dtype=np.int32),borrow=True)   
 # compute number of minibatches for training, validation and testing
 n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
 n_valid_batches = valid_set_x.get_value(borrow=True).shape[0] / batch_size
@@ -411,8 +431,9 @@ print '... building the model'
 # Reshape matrix of rasterized images of shape (batch_size, 28 * 28)
 # to a 4D tensor, compatible with our LeNetConvPoolLayer
 # (28, 28) is the size of MNIST images.
-layer0_input = x.reshape((batch_size, 1, 28, 28))
-nb_channels=1
+layer0_input = x.reshape((batch_size, 28, 28,3))
+layer0_input = layer0_input.dimshuffle(0,3,1,2)
+nb_channels=3
 image_size=[28,28]
 # Construct the first convolutional pooling layer:
 # filtering reduces the image size to (28-5+1 , 28-5+1) = (24, 24)
