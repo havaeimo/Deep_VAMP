@@ -23,8 +23,8 @@ nkerns=[16,32]
 n_epochs=100
 nb_channels=3
 image_size=[128,64]
-update_rule = "adadelta"  
-decrease_constant = 0.00001
+update_rule = "expdecay"  
+decrease_constant = 0.0001
 nb_classes = 2 
 init_momentum=0.9
 ################################################################################################
@@ -77,7 +77,7 @@ layer0_input = layer0_input.dimshuffle(0,3,1,2)
 # filtering reduces the image size to (28-5+1 , 28-5+1) = (24, 24)
 # maxpooling reduces this further to (24/2, 24/2) = (12, 12)
 # 4D output tensor is thus of shape (batch_size, nkerns[0], 12, 12)
-layers = [models2.LeNetConvPoolLayer(rng=rng, input=layer0_input, 
+layers = [models2.LeNetConvPoolLayer(rng=rng,layerIdx=0, input=layer0_input, 
                                          filter_shape=(nkerns[0],nb_channels,filter_shapes[0][0],filter_shapes[0][1]), 
                                          image_shape=(batch_size,nb_channels,image_size[0],image_size[1]), 
                                          activation=T.tanh, 
@@ -94,7 +94,7 @@ for h_id in range(1,len(nkerns)):
 
     nb_channels_h = layers[-1].filter_shape[0]
     featuremap_shape = models2.get_channel_shape(layers[-1])
-    layers += [models2.LeNetConvPoolLayer(rng=rng, input=layers[-1].output, 
+    layers += [models2.LeNetConvPoolLayer(layerIdx=h_id,rng=rng, input=layers[-1].output, 
                                           filter_shape=(nkerns[h_id],nkerns[h_id-1],filter_shapes[h_id][0],filter_shapes[h_id][1]), 
                                           image_shape=(batch_size,nkerns[h_id-1],featuremap_shape[0],featuremap_shape[1]), 
                                           activation=T.tanh, 
@@ -120,7 +120,7 @@ last_conv_fm_shape = models2.get_channel_shape(layers[-1])
 n_in = nkerns[-1] * last_conv_fm_shape[0] * last_conv_fm_shape[1]
 # classify the values of the fully-connected sigmoidal layer
 #layers += [models2.LogisticRegression(input=layers[-1].output.flatten(2), n_in=n_in, n_out=2)]
-layers += [models2.ChannelLogisticRegression(rng=rng, input=layers[-1].output,
+layers += [models2.ChannelLogisticRegression(layerIdx=len(nkerns)+1,rng=rng, input=layers[-1].output,
                                       filter_shape=(nb_classes,nkerns[-1],last_conv_fm_shape[0],last_conv_fm_shape[1]), 
                                       image_shape =(batch_size,nkerns[-1],last_conv_fm_shape[0],last_conv_fm_shape[1]))]
 # the cost we minimize during training is the NLL of the model

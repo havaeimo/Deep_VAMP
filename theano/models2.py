@@ -14,7 +14,7 @@ import theano
 import theano.tensor as T
 
 class HiddenLayer(object):
-    def __init__(self, rng, input, n_in, n_out, W=None, b=None,
+    def __init__(self,layerIdx, rng, input, n_in, n_out, W=None, b=None,
                  activation=T.tanh):
         """
         Typical hidden layer of a MLP: units are fully-connected and have
@@ -68,11 +68,11 @@ class HiddenLayer(object):
             if activation == theano.tensor.nnet.sigmoid:
                 W_values *= 4
 
-            W = theano.shared(value=W_values, name='W', borrow=True)
+            W = theano.shared(value=W_values, name='W{}'.format(layerIdx), borrow=True)
 
         if b is None:
             b_values = numpy.zeros((n_out,), dtype=theano.config.floatX)
-            b = theano.shared(value=b_values, name='b', borrow=True)
+            b = theano.shared(value=b_values, name='b{}'.format(layerIdx), borrow=True)
 
         self.W = W
         self.b = b
@@ -95,7 +95,7 @@ class LogisticRegression(object):
     determine a class membership probability.
     """
 
-    def __init__(self, input, n_in, n_out):
+    def __init__(self,layerIdx, input, n_in, n_out):
         """ Initialize the parameters of the logistic regression
 
         :type input: theano.tensor.TensorType
@@ -118,7 +118,7 @@ class LogisticRegression(object):
                 (n_in, n_out),
                 dtype=theano.config.floatX
             ),
-            name='W',
+            name='W{}'.format(layerIdx),
             borrow=True
         )
         # initialize the baises b as a vector of n_out 0s
@@ -127,7 +127,7 @@ class LogisticRegression(object):
                 (n_out,),
                 dtype=theano.config.floatX
             ),
-            name='b',
+            name='b{}'.format(layerIdx),
             borrow=True
         )
 
@@ -214,7 +214,7 @@ class ChannelLogisticRegression(object):
     determine a class membership probability.
     """
 
-    def __init__(self, rng, input, filter_shape, image_shape, b_values=None):
+    def __init__(self,layerIdx, rng, input, filter_shape, image_shape, b_values=None):
         """ Initialize the parameters of the logistic regression
 
         :type input: theano.tensor.TensorType
@@ -251,6 +251,7 @@ class ChannelLogisticRegression(object):
                 rng.uniform(low=-W_bound, high=W_bound, size=filter_shape),
                 dtype=theano.config.floatX
             ),
+            name='W{}'.format(layerIdx), 
             borrow=True
         )
 
@@ -259,7 +260,7 @@ class ChannelLogisticRegression(object):
             b_values = numpy.zeros((filter_shape[0],), dtype=theano.config.floatX)
 
 
-        self.b = theano.shared(value=b_values, borrow=True)
+        self.b = theano.shared(value=b_values, name='b{}'.format(layerIdx),borrow=True)
 
         # convolve input feature maps with filters
         conv_out = conv.conv2d(
@@ -432,7 +433,7 @@ def load_data(dataset):
 class LeNetConvPoolLayer(object):
     """Pool Layer of a convolutional network """
 
-    def __init__(self, rng, input, filter_shape, image_shape, activation=T.tanh, pool_size=(2, 2),conv_stride=(1,1),pool_stride=None):
+    def __init__(self, layerIdx,rng, input, filter_shape, image_shape, activation=T.tanh, pool_size=(2, 2),conv_stride=(1,1),pool_stride=None):
 
         """
         Allocate a LeNetConvPoolLayer with shared variable internal parameters.
@@ -473,12 +474,13 @@ class LeNetConvPoolLayer(object):
                 rng.uniform(low=-W_bound, high=W_bound, size=filter_shape),
                 dtype=theano.config.floatX
             ),
+            name='W{}'.format(layerIdx), 
             borrow=True
         )
 
         # the bias is a 1D tensor -- one bias per output feature map
         b_values = numpy.zeros((filter_shape[0],), dtype=theano.config.floatX)
-        self.b = theano.shared(value=b_values, borrow=True)
+        self.b = theano.shared(value=b_values, name='b{}'.format(layerIdx),borrow=True)
 
         # convolve input feature maps with filters
         conv_out = conv.conv2d(
