@@ -2,10 +2,38 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.compat.python2x import OrderedDict
+from theano.compat import six
+
 """
 Some/most of those were inspired/taken from https://github.com/lisa-lab/pylearn2.
 """
+class ExpDecayLearningRate(object):
 
+    def __init__(self, learning_rate, decrease_constant=0.95):
+        """
+        Parameters
+        ----------
+        decrease_constant: float
+            factor decreasing learning rate.
+        """
+        assert decrease_constant >= 0.
+        assert decrease_constant < 1.
+        self.learning_rate = learning_rate
+        self.decrease_constant = decrease_constant
+        self.current_iteration = theano.shared(np.array(0, dtype=np.int64))
+        self.parameters = [self.current_iteration]
+
+    def get_updates(self, grads):
+        grads = OrderedDict(grads)
+        updates = OrderedDict()
+
+        for param in grads.keys():
+            decreased_learning_rate = T.cast(self.learning_rate * T.exp(-self.decrease_constant * self.current_iteration) , dtype=theano.config.floatX)
+            updates[param] = param - decreased_learning_rate * grads[param]
+
+        updates[self.current_iteration] = self.current_iteration + 1
+
+        return updates
 
 class DecreasingLearningRate(object):
 
@@ -235,3 +263,86 @@ class RMSProp(object):
             updates[param] = param - (self.learning_rate / root_mean_squared) * grads[param]
 
         return updates
+
+    
+class Momentum(object):
+    """
+    Implements momentum as described in Section 9 of
+    "A Practical Guide to Training Restricted Boltzmann Machines",
+    Geoffrey Hinton.
+    Parameters are updated by the formula:
+    inc := momentum * inc - learning_rate * d cost / d param
+    param := param + inc
+    Parameters
+    ----------
+    init_momentum : float
+        Initial value for the momentum coefficient. It remains fixed during
+        training unless used with a `MomentumAdjustor`
+        extension.
+    nesterov_momentum: bool
+        Use the accelerated momentum technique described in:
+        "Advances in Optimizing Recurrent Networks", Yoshua Bengio, et al.
+    """
+
+    def __init__(self, learning_rate, init_momentum, nesterov_momentum=False):
+        assert init_momentum >= 0.
+        assert init_momentum < 1.
+        self.momentum = theano.shared(init_momentum, 'momentum')
+        self.nesterov_momentum = nesterov_momentum
+        self.learning_rate = learning_rate
+    def add_channels_to_monitor(self, monitor, monitoring_dataset):
+        """
+        Activates monitoring of the momentum.
+        Parameters
+        ----------
+        monitor : pylearn2.monitor.Monitor
+            Monitor object, to which the rule should register additional
+            monitoring channels.
+        monitoring_dataset : pylearn2.datasets.dataset.Dataset or dict
+            Dataset instance or dictionary whose values are Dataset objects.
+        """
+        monitor.add_channel(
+            name='momentum',
+            ipt=None,
+            val=self.momentum,
+            data_specs=(NullSpace(), ''),
+            dataset=monitoring_dataset)
+
+    def get_updates(self, grads, lr_scalers=None):
+        """
+        Provides the updates for learning with gradient descent + momentum.
+        Parameters
+        ----------
+        learning_rate : float
+            Learning rate coefficient.
+        grads : dict
+            A dictionary mapping from the model's parameters to their
+            gradients.
+        lr_scalers : dict
+            A dictionary mapping from the model's parameters to a learning
+            rate multiplier.
+        """
+
+        updates = OrderedDict()
+
+        for (param, grad) in six.iteritems(grads):
+            vel = theano.shared(param.get_value() * 0.)
+            assert param.dtype == vel.dtype
+            assert grad.dtype == param.dtype
+            if param.name is not None:
+                vel.name = 'vel_' + param.name
+
+            scaled_lr = self.learning_rate * lr_scalers.get(param, 1.)
+            updates[vel] = self.momentum * vel - scaled_lr * grad
+
+            inc = updates[vel]
+            if self.nesterov_momentum:
+                inc = self.momentum * inc - scaled_lr * grad
+
+            assert inc.dtype == vel.dtype
+            updates[param] = param + inc
+
+        return updates
+
+
+

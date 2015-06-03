@@ -12,6 +12,7 @@ import numpy
 from deep_vamp import VAMP
 import theano
 import theano.tensor as T
+from update_rules import Momentum, DecreasingLearningRate, AdaGrad, AdaDelta, RMSProp, Adam, Adam_paper, ExpDecayLearningRate
 
 rng = numpy.random.RandomState(23455)
 learning_rate=0.01
@@ -21,7 +22,11 @@ pool_stride=[(2,2),(2,2)]
 nkerns=[16,32]
 n_epochs=100
 nb_channels=3
-image_size=[128,64]   
+image_size=[128,64]
+update_rule = "adadelta"  
+decrease_constant = 0.00001
+nb_classes = 2 
+init_momentum=0.9
 ################################################################################################
 ################################################################################################
 ################################################################################################
@@ -116,7 +121,7 @@ n_in = nkerns[-1] * last_conv_fm_shape[0] * last_conv_fm_shape[1]
 # classify the values of the fully-connected sigmoidal layer
 #layers += [models2.LogisticRegression(input=layers[-1].output.flatten(2), n_in=n_in, n_out=2)]
 layers += [models2.ChannelLogisticRegression(rng=rng, input=layers[-1].output,
-                                      filter_shape=(2,nkerns[-1],last_conv_fm_shape[0],last_conv_fm_shape[1]), 
+                                      filter_shape=(nb_classes,nkerns[-1],last_conv_fm_shape[0],last_conv_fm_shape[1]), 
                                       image_shape =(batch_size,nkerns[-1],last_conv_fm_shape[0],last_conv_fm_shape[1]))]
 # the cost we minimize during training is the NLL of the model
 cost = layers[-1].negative_log_likelihood(y)
@@ -156,10 +161,35 @@ grads = T.grad(cost, params)
 # manually create an update rule for each model parameter. We thus
 # create the updates list by automatically looping over all
 # (params[i], grads[i]) pairs.
-updates = [
-    (param_i, param_i - learning_rate * grad_i)
-    for param_i, grad_i in zip(params, grads)
-]
+        # Initialize update_rule
+      
+if update_rule == "None":
+    update_rule = DecreasingLearningRate(learning_rate, decrease_constant)
+if update_rule == "expdecay":    
+    update_rule = ExpDecayLearningRate(learning_rate, decrease_constant)
+elif update_rule == "adadelta":
+    update_rule = AdaDelta(decay=decrease_constant, epsilon=learning_rate)
+elif update_rule == "adagrad":
+    update_rule = AdaGrad(learning_rate=learning_rate)
+elif update_rule == "rmsprop":
+    update_rule = RMSProp(learning_rate=learning_rate, decay=decrease_constant)
+elif update_rule == "adam":
+    update_rule = Adam(learning_rate=learning_rate)
+elif update_rule == "adam_paper":
+    update_rule = Adam_paper(learning_rate=learning_rate)
+elif update_rule == "momentum":
+    update_rule = Momentum(learning_rate=learning_rate,init_momentum=init_momentum)
+
+    
+
+updates = update_rule.get_updates(zip(params, grads))
+
+
+
+#updates = [
+#    (param_i, param_i - learning_rate * grad_i)
+#    for param_i, grad_i in zip(params, grads)
+#]
 
 train_model = theano.function(
     [index],
