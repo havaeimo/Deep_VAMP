@@ -1,0 +1,162 @@
+
+!obj:pylearn2.train.Train {
+    dataset: &train !obj:pylearn2.datasets.brats_pooling_multiout.BRATS {
+        patch_shape: 33,
+        label_patch_shape: 1,
+        path_analysis:
+'%(data)s/AUGMENTED_DATASETS_2013/Augmented_2013_DATASET_ANALYSIS_TRAIN',
+        path_brains:
+'%(data)s/AUGMENTED_DATASETS_2013/Augmented_2013_DATASET_BRAINS_TRAIN',
+        num_minibatches_train: 1000,
+        num_minibatches_test: 100,
+        axes: [ 'c', 0, 1, 'b' ]
+    },
+    model: !obj:pylearn2.models.mlp.MLP {
+        batch_size: 128,
+        layers: [
+                 !obj:ConvmixLayer.ConvmixLayer {
+                     raw_layer: !obj:pylearn2.models.mlp.CompositeLayer {
+                     layer_name: 'no_dropout_on_me',
+                 layers: [
+          
+                    !obj:pylearn2.models.mlp.MLP {
+                      layers:[
+                           !obj:pylearn2.models.maxout.MaxoutConvC01B {
+                              layer_name: 'conv00',
+                              pad: 0,
+                              tied_b: 1,
+                              W_lr_scale: .05,
+                              b_lr_scale: .05,
+                              num_channels: %(num_channelsG1)i,
+                              num_pieces: 2,
+                              kernel_shape: [7, 7],
+                              pool_shape: [4, 4],
+                              pool_stride: [1, 1],
+                              irange: .005,
+                              max_kernel_norm: 0.9,
+                              },
+                          !obj:pylearn2.models.maxout.MaxoutConvC01B {
+                              layer_name: 'conv01',
+                              tied_b: 1,
+                              W_lr_scale: .05,
+                              b_lr_scale: .05,
+                              num_channels: %(num_channelsG2)i,
+                              kernel_shape: [3, 3],
+                              pool_shape: [2, 2],
+                              pool_stride: [1, 1],
+                              irange: .005,
+                              max_kernel_norm: 1.9365,
+                              #pool_type: max,
+                              num_pieces: 1,
+                              min_zero: true
+                              },
+                              ]
+                              },
+
+                   !obj:pylearn2.models.mlp.MLP {
+
+                     layers:[
+                          !obj:pylearn2.models.maxout.MaxoutConvC01B {
+                               layer_name: 'Lconv00',
+                               pad: 0,
+                               tied_b: 1,
+                               W_lr_scale: .05,
+                               b_lr_scale: .05,
+                               num_channels: %(num_channelsL)i,
+                               num_pieces: 1,
+                               kernel_shape: [13,13],
+                               pool_shape: [1, 1],
+                               pool_stride: [1, 1],
+                               irange: .005,
+                               max_kernel_norm: 0.9
+                               },
+                              ]
+                              }                           
+                        ]
+                    } #end composite
+                   }, # end mixlayer
+                  
+               !obj:pylearn2.models.maxout.MaxoutConvC01B {
+                    layer_name: 'conv02',
+                    pad: 0,
+                    tied_b: 1,
+                    W_lr_scale: 0.05,
+                    b_lr_scale: 0.05,
+                    num_channels: 16,
+                    num_pieces: 1,
+                    init_bias: [-0.45,-3.56,-1.54,-2.76,-2.83,0,0,0,0,0,0,0,0,0,0,0],
+                    kernel_shape: [21,21],
+                    pool_shape: [1, 1],
+                    pool_stride: [1, 1],
+                    irange: .005,
+                    max_kernel_norm: 1.9365,
+                    }, 
+               !obj:pylearn2.models.mlp.WindowChannelLayer {
+                    layer_name: 'winchan',
+                    window: [0,5]
+                    },
+               !obj:softmax_multiout_new.Softmax_multidim {
+                    n_classes: 5,
+                    layer_name: 'layer2',     
+                    }
+                ],
+        input_space: !obj:pylearn2.space.Conv2DSpace {
+            shape: [33, 33],
+            num_channels: 4,
+            axes: ['c', 0, 1, 'b'],
+        },
+    },
+    algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
+        learning_rate: %(lr)f,
+        learning_rule: !obj:pylearn2.training_algorithms.learning_rule.Momentum {
+            init_momentum: %(momentum)f,
+        },
+        monitoring_dataset: {
+            'train' : *train,
+            'valid' : !obj:pylearn2.datasets.brats_pooling_multiout.BRATS {
+               patch_shape: 33,
+               label_patch_shape: 1,  
+                path_analysis: 
+'%(data)s/AUGMENTED_DATASETS_2013/Augmented_2013_DATASET_ANALYSIS_VALID',
+                path_brains: 
+'%(data)s/AUGMENTED_DATASETS_2013/Augmented_2013_DATASET_BRAINS_VALID',
+                num_minibatches_test: 100,
+                axes: [ 'c', 0, 1, 'b' ]
+                },
+        },
+        termination_criterion: !obj:pylearn2.termination_criteria.EpochCounter {
+            max_epochs: 50
+        },
+        cost: !obj:pylearn2.costs.cost.SumOfCosts {
+            costs: [
+                !obj:pylearn2.costs.mlp.dropout.Dropout {
+                     input_include_probs: {'no_dropout_on_me':1., 'layer2':1., 'winchan': 1., 'conv00': 0.8, 'conv01': 0.8,  'Lconv00': 0.6, 'Lconv01': 0.6},
+                     input_scales : { 'no_dropout_on_me':1., 'layer2':1., 'winchan': 1., 'conv00': 1.25, 'conv01': 1.25,  'Lconv00': 1.66, 'Lconv01': 1.66}
+                },
+                !obj:pylearn2.costs.mlp.WeightDecay {
+                     coeffs: [[[0.,0.],[0.]],%(L2_WD)f,0.,0.]
+               },
+               !obj:pylearn2.costs.mlp.L1WeightDecay {
+                     coeffs: [[[0.,0.],[0.]],%(L1_WD)f,0.,0.]
+                }
+                ]}
+    },
+    extensions: [
+        !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
+             channel_name: 'valid_layer2_misclass',
+             save_path: "${PYLEARN2_TRAIN_FILE_FULL_STEM}_best.pkl"
+        },
+        !obj:pylearn2.training_algorithms.learning_rule.MomentumAdjustor {
+            start: 1,
+            saturate: 80,
+            final_momentum: .95
+        },
+        !obj:pylearn2.training_algorithms.sgd.LinearDecayOverEpoch {
+            start: 10,
+            saturate: 250,
+            decay_factor: %(decay_factor)f
+        }
+    ],
+    save_path: "${PYLEARN2_TRAIN_FILE_FULL_STEM}.pkl",
+    save_freq: 1
+}

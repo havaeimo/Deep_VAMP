@@ -1,0 +1,117 @@
+!obj:pylearn2.train.Train {
+    dataset: &train !obj:pylearn2.datasets.deep_vamp.VAMP { 
+      path_dataset: '%(data)s/Deep_VAMP/train_real_virtual',
+      center: False,
+      gcn: False,
+      toronto_prepro: True,
+      #axes: ['b', 0, 1, 'c'],
+      start: 0,
+      stop: 20000,
+      image_resize: [128,64]
+    },
+
+    model: !obj:pylearn2.models.mlp.MLP {
+        batch_size: 100,
+        input_space: !obj:pylearn2.space.Conv2DSpace {
+          shape: [128,64],
+          num_channels: 3,
+          axes: ['b', 0, 1, 'c'],
+        },
+        layers: [
+
+
+!obj:pylearn2.models.mlp.ConvRectifiedLinear {
+                     layer_name: 'h1',
+                     output_channels: %(num_channelsG1)i,
+                     irange: .05,
+                     kernel_shape: [ %(kernel_shape_G1)i,  %(kernel_shape_G1)i],
+                     pool_shape: [ %(pool_shape_G1)i,  %(pool_shape_G1)i],
+                     pool_stride: [2, 2],
+                     max_kernel_norm: 1.9365
+                 },
+!obj:pylearn2.models.mlp.ConvRectifiedLinear {
+                     layer_name: 'h2',
+                     output_channels: %(num_channelsG2)i,
+                     irange: .05,
+                     kernel_shape: [ %(kernel_shape_G2)i,  %(kernel_shape_G2)i],
+                     pool_shape: [ %(pool_shape_G2)i,  %(pool_shape_G2)i],
+                     pool_stride: [2, 2],
+                     max_kernel_norm: 1.9365
+                 },
+
+                 !obj:pylearn2.models.mlp.Softmax {
+                   max_col_norm: 1.9365,
+                   layer_name: 'y',
+                   n_classes: 2,
+                   W_lr_scale: .5,
+                   b_lr_scale: .1,
+                   irange: .5
+                 }
+                ],
+
+    },
+    algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
+        learning_rate: %(lr)f,
+        learning_rule: !obj:pylearn2.training_algorithms.learning_rule.Momentum {
+            init_momentum: %(momentum)f,
+        },
+        monitoring_dataset: {
+            'train' : *train,
+            'valid' : !obj:pylearn2.datasets.deep_vamp.VAMP { 
+      path_dataset: '/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/train_real_virtual',
+      center: False,
+      gcn: False,
+      toronto_prepro: True,
+      #axes: ['b', 0, 1, 'c'],
+      start: 20000,
+      stop: 25000,
+      image_resize: [128,64]
+    },
+            'test' : !obj:pylearn2.datasets.deep_vamp.VAMP { 
+      path_dataset: '/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/train_real_virtual',
+      center: False,
+      gcn: False,
+      toronto_prepro: True,
+      #axes: ['b', 0, 1, 'c'],
+      start: 25000,
+      stop: 29532,
+      image_resize: [128,64]
+    },
+        },
+        termination_criterion: !obj:pylearn2.termination_criteria.EpochCounter {
+            max_epochs: 200
+        },
+       cost: !obj:pylearn2.costs.cost.SumOfCosts { costs: [
+            !obj:pylearn2.costs.mlp.dropout.Dropout {
+                     input_include_probs: {'y':1.},
+                     input_scales : { 'y':1.}
+                },
+
+            !obj:pylearn2.costs.cost.MethodCost {
+                method: 'cost_from_X'
+            }
+            , !obj:pylearn2.costs.mlp.WeightDecay {
+                coeffs: [ %(L2_WD)f, %(L2_WD)f, %(L2_WD)f ]}
+            ,  !obj:pylearn2.costs.mlp.WeightDecay {
+                coeffs: [ %(L1_WD)f, %(L1_WD)f, %(L1_WD)f ]}
+            ]},
+            },
+    extensions: [
+        !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
+             channel_name: 'valid_y_misclass',
+             save_path: "${PYLEARN2_TRAIN_FILE_FULL_STEM}_best.pkl"
+        },
+        !obj:pylearn2.training_algorithms.learning_rule.MomentumAdjustor {
+            start: 1,
+            saturate: 100,
+            final_momentum: .9
+        },
+        !obj:pylearn2.training_algorithms.sgd.LinearDecayOverEpoch {
+            start: 10,
+            saturate: 250,
+            decay_factor: %(decay_factor)f  
+        }
+    ],
+    save_path: "${PYLEARN2_TRAIN_FILE_FULL_STEM}.pkl",
+    save_freq: 1
+}
