@@ -13,6 +13,16 @@ import os.path
 from PIL import Image
 import PIL
 from pylearn2.datasets.deep_vamp import toronto_preprocessing
+import scipy.ndimage
+def generate_BoundingBOx_score_file(MultiScaleResultImage,name,threshold=0):
+    f = open(join(result_path+name+'.txt'),'w')
+    texts = ''    
+    for (map,bounding_box_size) in MultiScaleResultImage:
+        for i in range(map.shape[0]):
+            for j in range(map.shape[1]):
+                if map[i,j]>threshold:
+                    texts += str(i)+' '+str(j)+' '+str(int(bounding_box_size[1]))+' '+str(int(bounding_box_size[0]))+' '+str(map[i,j])+'\n'
+    f.write(texts)                
 
 def makepatches(image):
 
@@ -93,6 +103,12 @@ def load_dataset(path_testset):
     images = np.array(images)
     return (images,names)
 
+def make_multiple_scales(image, scales):
+    #scaled_size = [(320*scale,240*scale)  for scale in scales]
+    scaled_image=[]
+    for scale in scales:
+        scaled_image += [scipy.ndimage.zoom(image, [scale,scale,1], order=3)]
+    return scaled_image    
 
 if __name__ == "__main__":
 
@@ -116,9 +132,11 @@ if __name__ == "__main__":
         os.makedirs(result_path)
 
     model = cPickle.load(args.model)
+    scales = [0.75,1]
+    threshold = 0.01 
     #model.layers[0].input_space.shape = (240,320)
     #model.layers[0].desired_space.shape = (240, 320)   
-    pdb.set_trace()
+    
     X = model.get_input_space().make_theano_batch()
     fprop = theano.function([X], model.fprop(X))
     input_shape = model.input_space.shape
@@ -136,21 +154,35 @@ if __name__ == "__main__":
     testdata = toronto_preprocessing(testdata)
     #prediction = generate_prediction_patchwise(testdata,fprop)
     ii = 0
+
     for name, test_image in izip(name_testdata,testdata):
-        prob_map = generate_prediction_patchwise([test_image],fprop)
-        import pdb
-        pdb.set_trace()
-        prob_map = prob_map[0]
-        pos_map = prob_map[...,1]
-        #neg_map = prob_map[...,0]
-        pos_name = join(result_path,name+'_pos.png')
-        #neg_name = join(result_path,name+'_neg.png')
-        image_name = join(result_path,name)        
-        scipy.misc.imsave(pos_name, pos_map)
-        #scipy.misc.imsave(neg_name, neg_map)
-        scipy.misc.imsave(image_name, test_image)
-        print name+'>> '+str(ii+1)+' of '+str(len(testdata))
+
+        MultiScaleResultImage = []
+        for scale in scales:
+            scaled_image = scipy.ndimage.zoom(test_image, [scale,scale,1], order=3).copy()
+            prob_map = generate_prediction_patchwise([scaled_image],fprop)
+
+            prob_map = prob_map[0]
+            pos_map = prob_map[...,1]
+            
+            reference_map_size = [240-input_shape[0],320-input_shape[1]]
+            reverse_scale = [(reference_map_size[0]*1.0)/(pos_map.shape[0]*1.0),(reference_map_size[1]*1.0)/(pos_map.shape[1]*1.0)]
+            pos_map = scipy.ndimage.zoom(pos_map, reverse_scale, order=3)
+            bounding_box_size = (reverse_scale[0]*input_shape[0],reverse_scale[1]*input_shape[1])
+            
+            MultiScaleResultImage += [(pos_map,bounding_box_size)]
+            #neg_map = prob_map[...,0]
+            pos_name = join(result_path,name+'_'+str(scale)+'.png')
+            #neg_name = join(result_path,name+'_neg.png')
+            image_name = join(result_path,name)        
+            scipy.misc.imsave(pos_name, pos_map)
+            #scipy.misc.imsave(neg_name, neg_map)
+            scipy.misc.imsave(image_name, test_image)
+            print name+'_'+str(scale)+'>> image_shape '+str(scaled_image.shape) +'>> '+str(ii+1)+' of '+str(len(testdata))
+        pdb.set_trace()    
+        generate_BoundingBOx_score_file(MultiScaleResultImage,name,threshold)
+
         ii+=1         
-        #fhandle = open(fname, 'wb+')
-        #numpy.save(fhandle, prediction)
-        #fhandle.close()
+            #fhandle = open(fname, 'wb+')
+            #numpy.save(fhandle, prediction)
+            #fhandle.close()
