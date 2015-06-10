@@ -1,0 +1,14 @@
+Input shape: (128, 64)
+Detector space: (124, 60)
+Output space: (61, 29)
+Input shape: (61, 29)
+Detector space: (57, 25)
+Output space: (28, 12)
+Parameter and initial learning rate summary:
+	W: 0.00999999977648
+	b: 0.00999999977648
+	W: 0.00999999977648
+	b: 0.00999999977648
+	softmax_b: 0.000999999977648
+	softmax_W: 0.00499999988824
+Compiling sgd_update...

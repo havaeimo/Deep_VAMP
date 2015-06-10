@@ -1,6 +1,6 @@
 !obj:pylearn2.train.Train {
     dataset: &train !obj:pylearn2.datasets.deep_vamp.VAMP { 
-      path_dataset: '/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/train_real_virtual',
+      path_dataset: '/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/train_real_pn_virtual',
       center: False,
       gcn: False,
       toronto_prepro: True,
@@ -58,7 +58,7 @@
         monitoring_dataset: {
             'train' : *train,
             'valid' : !obj:pylearn2.datasets.deep_vamp.VAMP { 
-      path_dataset: '/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/train_real_virtual',
+      path_dataset: '/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/train_real_pn_virtual',
       center: False,
       gcn: False,
       toronto_prepro: True,
@@ -68,7 +68,7 @@
       image_resize: [128,64]
     },
             'test' : !obj:pylearn2.datasets.deep_vamp.VAMP { 
-      path_dataset: '/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/train_real_virtual',
+      path_dataset: '/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/train_real_pn_virtual',
       center: False,
       gcn: False,
       toronto_prepro: True,

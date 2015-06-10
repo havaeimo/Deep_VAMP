@@ -1,14 +1,14 @@
 function main()
-input_path = '/home/local/USHERBROOKE/havm2701/git.repos/Deep_VAMP/ConvRecL/test_results2/';
+input_path = '/home/local/USHERBROOKE/havm2701/data/deep_vamp_results2/';
 dir_list = dir(input_path);
-result_path = '/home/local/USHERBROOKE/havm2701/git.repos/Deep_VAMP/ConvRecL/results_Nms/';
+result_path = '/home/local/USHERBROOKE/havm2701/data/results_Nms/';
 if ~isdir(result_path)
     mkdir(result_path)
 end
 
 for i=1:length(dir_list)
     if strfind( dir_list(i).name,'txt')
-        path1 = [path,dir_list(i).name];
+        path1 = [input_path,dir_list(i).name];
         make_Nms_file(path1,dir_list(i).name,result_path)
     end
 end

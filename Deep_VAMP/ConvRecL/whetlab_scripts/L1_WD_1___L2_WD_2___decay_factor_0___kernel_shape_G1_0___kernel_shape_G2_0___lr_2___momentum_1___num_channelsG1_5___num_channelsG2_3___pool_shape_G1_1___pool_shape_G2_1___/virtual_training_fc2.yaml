@@ -6,7 +6,7 @@
       toronto_prepro: True,
       #axes: ['b', 0, 1, 'c'],
       start: 0,
-      stop: 11000,
+      stop: 20000,
       image_resize: [128,64]
     },
 
@@ -22,19 +22,19 @@
 
 !obj:pylearn2.models.mlp.ConvRectifiedLinear {
                      layer_name: 'h1',
-                     output_channels: 64,
+                     output_channels: 160,
                      irange: .05,
-                     kernel_shape: [5, 5],
-                     pool_shape: [4, 4],
+                     kernel_shape: [ 3,  3],
+                     pool_shape: [ 5,  5],
                      pool_stride: [2, 2],
                      max_kernel_norm: 1.9365
                  },
 !obj:pylearn2.models.mlp.ConvRectifiedLinear {
                      layer_name: 'h2',
-                     output_channels: 64,
+                     output_channels: 96,
                      irange: .05,
-                     kernel_shape: [5, 5],
-                     pool_shape: [4, 4],
+                     kernel_shape: [ 3,  3],
+                     pool_shape: [ 5,  5],
                      pool_stride: [2, 2],
                      max_kernel_norm: 1.9365
                  },
@@ -51,9 +51,9 @@
 
     },
     algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
-        learning_rate: .01,
+        learning_rate: 0.010000,
         learning_rule: !obj:pylearn2.training_algorithms.learning_rule.Momentum {
-            init_momentum: 0.5,
+            init_momentum: 0.700000,
         },
         monitoring_dataset: {
             'train' : *train,
@@ -63,8 +63,8 @@
       gcn: False,
       toronto_prepro: True,
       #axes: ['b', 0, 1, 'c'],
-      start: 11000,
-      stop: 13000,
+      start: 20000,
+      stop: 25000,
       image_resize: [128,64]
     },
             'test' : !obj:pylearn2.datasets.deep_vamp.VAMP { 
@@ -73,20 +73,27 @@
       gcn: False,
       toronto_prepro: True,
       #axes: ['b', 0, 1, 'c'],
-      start: 13000,
-      stop: 15042,
+      start: 25000,
+      stop: 29532,
       image_resize: [128,64]
     },
         },
         termination_criterion: !obj:pylearn2.termination_criteria.EpochCounter {
-            max_epochs: 600
+            max_epochs: 200
         },
        cost: !obj:pylearn2.costs.cost.SumOfCosts { costs: [
+            !obj:pylearn2.costs.mlp.dropout.Dropout {
+                     input_include_probs: {'y':1.},
+                     input_scales : { 'y':1.}
+                },
+
             !obj:pylearn2.costs.cost.MethodCost {
                 method: 'cost_from_X'
             }
             , !obj:pylearn2.costs.mlp.WeightDecay {
-                coeffs: [ .00005, .00005, .00005 ]}
+                coeffs: [ 0.005000, 0.005000, 0.005000 ]}
+            ,  !obj:pylearn2.costs.mlp.WeightDecay {
+                coeffs: [ 0.000500, 0.000500, 0.000500 ]}
             ]},
             },
     extensions: [
@@ -102,7 +109,7 @@
         !obj:pylearn2.training_algorithms.sgd.LinearDecayOverEpoch {
             start: 10,
             saturate: 250,
-            decay_factor: .1
+            decay_factor: 0.010000  
         }
     ],
     save_path: "${PYLEARN2_TRAIN_FILE_FULL_STEM}.pkl",
