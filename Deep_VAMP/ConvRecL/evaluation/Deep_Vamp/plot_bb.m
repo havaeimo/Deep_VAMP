@@ -1,12 +1,12 @@
-function plot_bb(im_path,output_path,gt_path,dt_path,g_c)
+function plot_bb(im_path,output_path,gt,dt)
     %im = imread(im);
     h=figure;
     set(h,'visible','off');
     h=imshow(imread(im_path));
     hold on
     
-    gt=load(gt_path);
-    dt=load(dt_path);
+    %[dummy_string x y w h]=textread(gt_path,'%s %d %d %d %d');
+    %dt=load(dt_path);
     [row_g col_g] = size(gt);
     [row_d col_d] = size(dt);
     
@@ -25,9 +25,7 @@ function plot_bb(im_path,output_path,gt_path,dt_path,g_c)
     end
     
     if size(gt,1)~=0
-        if g_c==true
-            gt(:,1:2)= gt(:,1:2)-gt(:,3:4)/2;
-        end
+
         gt = [gt ones(row_g,1)];
 
         %bb = [gt;dt];

@@ -38,7 +38,7 @@ class VAMP(DenseDesignMatrix):
 
         # load data
         #path_dataset = preprocess(path_dataset)
-        base_dir = '/home/local/USHERBROOKE/havm2701/data/Deep_VAMP/Virtual_Crops'
+        base_dir = '/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/Virtual_Crops'
         dir_list = [ f for f in os.listdir(base_dir) if isfile(join(base_dir,f)) ]
         rng = np.random.RandomState(seed=1234)
         rng.shuffle(dir_list)
@@ -141,7 +141,7 @@ class real_VAMP(DenseDesignMatrix):
 
         # load data
         #path_dataset = preprocess(path_dataset)
-        base_dir = '/home/local/USHERBROOKE/havm2701/data/Deep_VAMP/Crops'
+        base_dir = '/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/Crops'
         dir_list = [ f for f in os.listdir(base_dir) if isfile(join(base_dir,f)) ]
         rng = np.random.RandomState(seed=1234)
         rng.shuffle(dir_list)

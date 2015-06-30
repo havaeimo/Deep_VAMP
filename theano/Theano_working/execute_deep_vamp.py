@@ -9,7 +9,7 @@ import sys
 import time
 import numpy as np
 import numpy
-from deep_vamp import VAMP
+from pylearn2.datasets.deep_vamp import VAMP
 import theano
 import theano.tensor as T
 from update_rules import Momentum, DecreasingLearningRate, AdaGrad, AdaDelta, RMSProp, Adam, Adam_paper, ExpDecayLearningRate
@@ -32,10 +32,10 @@ init_momentum=0.9
 ################################################################################################
 ################################################################################################
 
-path_testset = '/home/local/USHERBROOKE/havm2701/data/DBFrames'
+path_testset = '/home/local/USHERBROOKE/havm2701/data/Data/DBFrames'
 batch_size = 100
-train = VAMP(start=0,stop=10000,image_resize=image_size,toronto_prepro=True)
-valid = VAMP(start=10000,stop=12000,image_resize=image_size,toronto_prepro=True)
+train = VAMP(start=0,stop=10000,image_resize=image_size,toronto_prepro=True,read='/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/TRAIN_REAL_PN_VIRTUAL')
+valid = VAMP(start=10000,stop=12000,image_resize=image_size,toronto_prepro=True,read='/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/TRAIN_REAL_PN_VIRTUAL')
 train_x = train.X 
 train_y = np.argmax(train.y,axis=1)
 valid_x = valid.X

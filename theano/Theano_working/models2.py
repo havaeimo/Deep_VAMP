@@ -9,7 +9,7 @@ import sys
 import time
 import numpy as np
 import numpy
-from deep_vamp import VAMP
+#from deep_vamp import VAMP
 import theano
 import theano.tensor as T
 
