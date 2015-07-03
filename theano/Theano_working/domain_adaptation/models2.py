@@ -214,7 +214,7 @@ class ChannelLogisticRegression(object):
     determine a class membership probability.
     """
 
-    def __init__(self,layerIdx, rng, filter_shape, image_shape, b_values=None):
+    def __init__(self,layerIdx, rng, input, filter_shape, image_shape, b_values=None):
         """ Initialize the parameters of the logistic regression
 
         :type input: theano.tensor.TensorType
@@ -261,35 +261,31 @@ class ChannelLogisticRegression(object):
 
 
         self.b = theano.shared(value=b_values, name='b{}'.format(layerIdx),borrow=True)
-        self.filter_shape = filter_shape
-        self.image_shape = image_shape
-        # parameters of the model
-        self.params = [self.W, self.b]
 
-    def fprop(self, input):
         # convolve input feature maps with filters
         conv_out = conv.conv2d(
             input=input,
             filters=self.W,
-            filter_shape=self.filter_shape,
-            image_shape=self.image_shape
+            filter_shape=filter_shape,
+            image_shape=image_shape
         )
 
         pre_output = conv_out + self.b.dimshuffle('x', 0, 'x', 'x')
 
         e_tensorbc01 = T.exp(pre_output - pre_output.max(axis=1, keepdims=True))
-        p_y_given_x = e_tensorbc01 /e_tensorbc01.sum(axis=1, keepdims=True)
+        self.p_y_given_x = e_tensorbc01 /e_tensorbc01.sum(axis=1, keepdims=True)
 
         #self.p_y_given_x = T.nnet.softmax(T.dot(input, self.W) + self.b)
 
         # symbolic description of how to compute prediction as class whose
         # probability is maximal
-        #y_pred = T.argmax(p_y_given_x, axis=1)
+        self.y_pred = T.argmax(self.p_y_given_x, axis=1)
         # end-snippet-1
 
-        return p_y_given_x
+        # parameters of the model
+        self.params = [self.W, self.b]
 
-    def negative_log_likelihood(self, p_y_given_x, y):
+    def negative_log_likelihood(self, y):
         """Return the mean of the negative log-likelihood of the prediction
         of this model under a given target distribution.
 
@@ -321,12 +317,12 @@ class ChannelLogisticRegression(object):
         # i.e., the mean log-likelihood across the minibatch.
 
          
-        p_y_given_x_shuff = p_y_given_x.dimshuffle(0,2,3,1)
+        p_y_given_x_shuff = self.p_y_given_x.dimshuffle(0,2,3,1)
         p_y_given_x_flat = p_y_given_x_shuff.flatten(2)
         return -T.mean(T.log(p_y_given_x_flat)[T.arange(y.shape[0]), y])
         # end-snippet-2
 
-    def errors(self, p_y_given_x, y):
+    def errors(self, y):
         """Return a float representing the number of errors in the minibatch
         over the total number of examples of the minibatch ; zero one
         loss over the size of the minibatch
@@ -336,20 +332,18 @@ class ChannelLogisticRegression(object):
                   correct label
         """
 
-        y_pred = T.argmax(p_y_given_x, axis=1)
-
         # check if y has same dimension of y_pred
-        y_pred = y_pred.flatten()
-        if y.ndim != y_pred.ndim:
+        self.y_pred = self.y_pred.flatten()
+        if y.ndim != self.y_pred.ndim:
             raise TypeError(
-                'y should have the same shape as y_pred',
-                ('y', y.type, 'y_pred', y_pred.type)
+                'y should have the same shape as self.y_pred',
+                ('y', y.type, 'y_pred', self.y_pred.type)
             )
         # check if y is of the correct datatype
         if y.dtype.startswith('int'):
             # the T.neq operator returns a vector of 0s and 1s, where 1
             # represents a mistake in prediction
-            return T.mean(T.neq(y_pred, y))
+            return T.mean(T.neq(self.y_pred, y))
         else:
             raise NotImplementedError()
 
@@ -439,7 +433,7 @@ def load_data(dataset):
 class LeNetConvPoolLayer(object):
     """Pool Layer of a convolutional network """
 
-    def __init__(self, layerIdx,rng, filter_shape, image_shape, activation=T.tanh, pool_size=(2, 2),conv_stride=(1,1),pool_stride=None):
+    def __init__(self, layerIdx,rng, input, filter_shape, image_shape, activation=T.tanh, pool_size=(2, 2),conv_stride=(1,1),pool_stride=None):
 
         """
         Allocate a LeNetConvPoolLayer with shared variable internal parameters.
@@ -463,7 +457,7 @@ class LeNetConvPoolLayer(object):
         """
 
         assert image_shape[1] == filter_shape[1]
-        
+        self.input = input
 
         # there are "num input feature maps * filter height * filter width"
         # inputs to each hidden unit
@@ -488,29 +482,18 @@ class LeNetConvPoolLayer(object):
         b_values = numpy.zeros((filter_shape[0],), dtype=theano.config.floatX)
         self.b = theano.shared(value=b_values, name='b{}'.format(layerIdx),borrow=True)
 
-
-        self.filter_shape=filter_shape
-        self.pool_stride=pool_stride
-        self.pool_size=pool_size
-        self.conv_stride=conv_stride
-        self.image_shape=image_shape
-        self.activation = activation
-        # store parameters of this layer
-        self.params = [self.W, self.b]
-
-    def fprop(self,input):
         # convolve input feature maps with filters
         conv_out = conv.conv2d(
             input=input,
             filters=self.W,
-            filter_shape=self.filter_shape,
-            image_shape=self.image_shape
+            filter_shape=filter_shape,
+            image_shape=image_shape
         )
 
         # downsample each feature map individually, using maxpooling
         pooled_out = downsample.max_pool_2d(
             input=conv_out,
-            ds=self.pool_size,
+            ds=pool_size,
             ignore_border=True
         )
 
@@ -518,9 +501,15 @@ class LeNetConvPoolLayer(object):
         # reshape it to a tensor of shape (1, n_filters, 1, 1). Each bias will
         # thus be broadcasted across mini-batches and feature map
         # width & height
-        return self.activation(pooled_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+        self.output = activation(pooled_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+        self.filter_shape=filter_shape
+        self.pool_stride=pool_stride
+        self.pool_size=pool_size
+        self.conv_stride=conv_stride
+        self.image_shape=image_shape
+        # store parameters of this layer
+        self.params = [self.W, self.b]
 
-        
 def get_channel_shape(layer):
     filter_shape = layer.filter_shape[2:]
     image_shape = layer.image_shape[2:]
