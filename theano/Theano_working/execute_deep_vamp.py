@@ -15,7 +15,7 @@ import theano.tensor as T
 from update_rules import Momentum, DecreasingLearningRate, AdaGrad, AdaDelta, RMSProp, Adam, Adam_paper, ExpDecayLearningRate
 from utils import Timer
 rng = numpy.random.RandomState(23455)
-learning_rate=0.01
+learning_rate=0.001
 filter_shapes=[(5,5),(5,5)]
 pool_size=[(2,2),(2,2)]
 pool_stride=[(2,2),(2,2)]
@@ -27,6 +27,7 @@ update_rule = "expdecay"
 decrease_constant = 0.0001
 nb_classes = 2 
 init_momentum=0.9
+ulambda=0
 ################################################################################################
 ################################################################################################
 ################################################################################################
@@ -145,14 +146,19 @@ for layer in domainadapt_branch:
   next_layer_input = layer.fprop(next_layer_input)
 
 Ld_t = domainadapt_branch[-1].negative_log_likelihood(next_layer_input, yd_t)
+import theano.printing as printing
+Lf_s = printing.Print('text')(Lf_s)
+
+#Ld_s = printing.Print('text')(Ld_s)
+#Lf_s = printing.Print('text')(Lf_s)
 
 #Different cost functions |Lf_s: the cost fucntion associated to the regulare fprop of source domain example
 #                         |Ld_s: the source domain sensitive loss function
 #                         |Ld_t: the target domain sensitive loss function
 # since the domain losses are maximizing we use negative loss in the cost formula
 
-ccost = Lf_s - Ld_s - Ld_t
-
+ccost = Lf_s +ulambda *(- Ld_s - Ld_t)
+#ccost = printing.Print('text')(ccost)
 # create a list of all model parameters to be fit by gradient descent
 
 params_w = layers[0].params
@@ -219,28 +225,69 @@ with Timer("compiling train method"):
 # create a function to compute the mistakes that are made by the model
 with Timer("compiling test method"):
   test_model = theano.function(
-      [index],
-      classification_branch[-1].errors(p_y_given_x,yf_s),
+      inputs=[index],
+      outputs=ccost,#classification_branch[-1].errors(p_y_given_x,yf_s),
       givens={
               x_s  :train_s_set_x[index * batch_size: (index + 1) * batch_size],
               yf_s :train_s_set_yf[index * batch_size: (index + 1) * batch_size],
-             # yd_s :train_s_set_yd[index * batch_size: (index + 1) * batch_size],
-             # x_t  :train_t_set_x[index * batch_size: (index + 1) * batch_size],
-             # yd_t :train_t_set_yd[index * batch_size: (index + 1) * batch_size]
+              yd_s :train_s_set_yd[index * batch_size: (index + 1) * batch_size],
+              x_t  :train_t_set_x[index * batch_size: (index + 1) * batch_size],
+              yd_t :train_t_set_yd[index * batch_size: (index + 1) * batch_size]
       })
 
 with Timer("compiling valid method"):
   validate_model = theano.function(
       [index],
-      classification_branch[-1].errors(p_y_given_x,yf_s),
+      ccost,#classification_branch[-1].errors(p_y_given_x,yf_s),
       givens={
               x_s  :train_s_set_x[index * batch_size: (index + 1) * batch_size],
               yf_s :train_s_set_yf[index * batch_size: (index + 1) * batch_size],
-             # yd_s :train_s_set_yd[index * batch_size: (index + 1) * batch_size],
-             # x_t  :train_t_set_x[index * batch_size: (index + 1) * batch_size],
-             # yd_t :train_t_set_yd[index * batch_size: (index + 1) * batch_size]
+              yd_s :train_s_set_yd[index * batch_size: (index + 1) * batch_size],
+              x_t  :train_t_set_x[index * batch_size: (index + 1) * batch_size],
+              yd_t :train_t_set_yd[index * batch_size: (index + 1) * batch_size]
       })
+'''
+cost_f_s = theano.function(
+    [index],
+    Lf_s,#classification_branch[-1].errors(p_y_given_x,yf_s),
+    givens={
+            x_s  :train_s_set_x[index * batch_size: (index + 1) * batch_size],
+            yf_s :train_s_set_yf[index * batch_size: (index + 1) * batch_size],
+            yd_s :train_s_set_yd[index * batch_size: (index + 1) * batch_size],
+            x_t  :train_t_set_x[index * batch_size: (index + 1) * batch_size],
+            yd_t :train_t_set_yd[index * batch_size: (index + 1) * batch_size]
+    })
+cost_d_s = theano.function(
+    [index],
+    Ld_s,#classification_branch[-1].errors(p_y_given_x,yf_s),
+    givens={
+            x_s  :train_s_set_x[index * batch_size: (index + 1) * batch_size],
+            yf_s :train_s_set_yf[index * batch_size: (index + 1) * batch_size],
+            yd_s :train_s_set_yd[index * batch_size: (index + 1) * batch_size],
+            x_t  :train_t_set_x[index * batch_size: (index + 1) * batch_size],
+            yd_t :train_t_set_yd[index * batch_size: (index + 1) * batch_size]
+    })
 
+cost_d_t = theano.function(
+    [index],
+    Ld_t,#classification_branch[-1].errors(p_y_given_x,yf_s),
+    givens={
+            x_s  :train_s_set_x[index * batch_size: (index + 1) * batch_size],
+            yf_s :train_s_set_yf[index * batch_size: (index + 1) * batch_size],
+            yd_s :train_s_set_yd[index * batch_size: (index + 1) * batch_size],
+            x_t  :train_t_set_x[index * batch_size: (index + 1) * batch_size],
+            yd_t :train_t_set_yd[index * batch_size: (index + 1) * batch_size]
+    })
+cost_total = theano.function(
+    [index],
+    ccost,#classification_branch[-1].errors(p_y_given_x,yf_s),
+    givens={
+            x_s  :train_s_set_x[index * batch_size: (index + 1) * batch_size],
+            yf_s :train_s_set_yf[index * batch_size: (index + 1) * batch_size],
+            yd_s :train_s_set_yd[index * batch_size: (index + 1) * batch_size],
+            x_t  :train_t_set_x[index * batch_size: (index + 1) * batch_size],
+            yd_t :train_t_set_yd[index * batch_size: (index + 1) * batch_size]
+    })'''
 ############################################################
 ###############
 # TRAIN MODEL #
@@ -268,6 +315,16 @@ while (epoch < n_epochs) and (not done_looping):
     epoch = epoch + 1
     for minibatch_index in xrange(n_train_batches):
         minibatch_avg_cost = train_model(minibatch_index)
+        #cfs = cost_f_s(minibatch)
+        #cds = cost_d_s(minibatch)
+        #cdt = cost_d_t(minibatch_index)
+        #c_total = cost_total(minibatch_index)
+        #print cfs
+        #print cds
+        #print cdt
+        #print c_total 
+        #import pdb
+        #pdb.set_trace()
         # iteration number
         iter = (epoch - 1) * n_train_batches + minibatch_index
         if (iter + 1) % validation_frequency == 0:
@@ -286,7 +343,8 @@ while (epoch < n_epochs) and (not done_looping):
                     this_validation_loss * 100.
                 )
             )
-
+            #import pdb
+            #pdb.set_trace()
             # if we got the best validation score until now
             if this_validation_loss < best_validation_loss:
                 #improve patience if loss improvement is good enough

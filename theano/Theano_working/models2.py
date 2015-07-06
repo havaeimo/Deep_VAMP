@@ -320,8 +320,9 @@ class ChannelLogisticRegression(object):
         # the mean (across minibatch examples) of the elements in v,
         # i.e., the mean log-likelihood across the minibatch.
 
-         
+
         p_y_given_x_shuff = p_y_given_x.dimshuffle(0,2,3,1)
+
         p_y_given_x_flat = p_y_given_x_shuff.flatten(2)
         return -T.mean(T.log(p_y_given_x_flat)[T.arange(y.shape[0]), y])
         # end-snippet-2
