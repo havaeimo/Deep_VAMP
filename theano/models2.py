@@ -95,7 +95,7 @@ class LogisticRegression(object):
     determine a class membership probability.
     """
 
-    def __init__(self,layerIdx, input, n_in, n_out):
+    def __init__(self,layerIdx, n_in, n_out):
         """ Initialize the parameters of the logistic regression
 
         :type input: theano.tensor.TensorType
@@ -131,6 +131,13 @@ class LogisticRegression(object):
             borrow=True
         )
 
+
+        # end-snippet-1
+
+        # parameters of the model
+        self.params = [self.W, self.b]
+
+    def fprop(self,input):
         # symbolic expression for computing the matrix of class-membership
         # probabilities
         # Where:
@@ -139,17 +146,13 @@ class LogisticRegression(object):
         # x is a matrix where row-j  represents input training sample-j
         # b is a vector where element-k represent the free parameter of hyper
         # plain-k
-        self.p_y_given_x = T.nnet.softmax(T.dot(input, self.W) + self.b)
+        p_y_given_x = T.nnet.softmax(T.dot(input, self.W) + self.b)
 
         # symbolic description of how to compute prediction as class whose
         # probability is maximal
-        self.y_pred = T.argmax(self.p_y_given_x, axis=1)
-        # end-snippet-1
+        return p_y_given_x         
 
-        # parameters of the model
-        self.params = [self.W, self.b]
-
-    def negative_log_likelihood(self, y):
+    def negative_log_likelihood(self,p_y_given_x, y):
         """Return the mean of the negative log-likelihood of the prediction
         of this model under a given target distribution.
 
@@ -178,10 +181,10 @@ class LogisticRegression(object):
         # LP[n-1,y[n-1]]] and T.mean(LP[T.arange(y.shape[0]),y]) is
         # the mean (across minibatch examples) of the elements in v,
         # i.e., the mean log-likelihood across the minibatch.
-        return -T.mean(T.log(self.p_y_given_x)[T.arange(y.shape[0]), y])
+        return -T.mean(T.log(p_y_given_x)[T.arange(y.shape[0]), y])
         # end-snippet-2
 
-    def errors(self, y):
+    def errors(self,p_y_given_x, y):
         """Return a float representing the number of errors in the minibatch
         over the total number of examples of the minibatch ; zero one
         loss over the size of the minibatch
@@ -190,18 +193,18 @@ class LogisticRegression(object):
         :param y: corresponds to a vector that gives for each example the
                   correct label
         """
-
+        y_pred = T.argmax(p_y_given_x, axis=1)
         # check if y has same dimension of y_pred
-        if y.ndim != self.y_pred.ndim:
+        if y.ndim != y_pred.ndim:
             raise TypeError(
                 'y should have the same shape as self.y_pred',
-                ('y', y.type, 'y_pred', self.y_pred.type)
+                ('y', y.type, 'y_pred', y_pred.type)
             )
         # check if y is of the correct datatype
         if y.dtype.startswith('int'):
             # the T.neq operator returns a vector of 0s and 1s, where 1
             # represents a mistake in prediction
-            return T.mean(T.neq(self.y_pred, y))
+            return T.mean(T.neq(y_pred, y))
         else:
             raise NotImplementedError()
 
@@ -278,7 +281,7 @@ class ChannelLogisticRegression(object):
         pre_output = conv_out + self.b.dimshuffle('x', 0, 'x', 'x')
 
         e_tensorbc01 = T.exp(pre_output - pre_output.max(axis=1, keepdims=True))
-        p_y_given_x = e_tensorbc01 /e_tensorbc01.sum(axis=1, keepdims=True)
+        p_y_given_x = e_tensorbc01 /e_tensorbc01.sum(axis=1, keepdims=True) 
 
         #self.p_y_given_x = T.nnet.softmax(T.dot(input, self.W) + self.b)
 

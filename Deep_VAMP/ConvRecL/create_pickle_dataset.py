@@ -4,19 +4,19 @@ from pylearn2.datasets.deep_vamp import generate_neg_crops
 from pylearn2.datasets.deep_vamp import create_dataset
 
 data_set = VAMP(
-            path_dataset='/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/train_real_pn_virtual/',
+            path_dataset='/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/INRIA/Train/crops_train_pos_neg',
             center=False,
             gcn=False,
             toronto_prepro=True,
             #axes: ['c', 0, 1, 'b'],
             start=0,
-            stop=56870,
+            stop=20282,
             image_resize= [128,64],
             #read = '/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/TEST'
             )
 #import pdb
 #pdb.set_trace()
-save_path = '/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/TRAIN_REAL_PN_VIRTUAL_BIG'
+save_path = '/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/PN_REAL'
 create_dataset(data_set,save_path)
 '''
 

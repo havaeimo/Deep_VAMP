@@ -19,15 +19,15 @@ learning_rate=0.001
 filter_shapes=[(5,5),(5,5)]
 pool_size=[(2,2),(2,2)]
 pool_stride=[(2,2),(2,2)]
-nkerns=[16,32]
+nkerns=[32]
 n_epochs=100
 nb_channels=3
 image_size=[128,64]
 update_rule = "expdecay"  
 decrease_constant = 0.0001
 nb_classes = 2 
-init_momentum=0.9
-ulambda=0
+init_momentum = 0.9
+gamma = 100
 ################################################################################################
 ################################################################################################
 ################################################################################################
@@ -38,13 +38,13 @@ batch_size = 100
 
 # Load the source dataset
 with Timer("loading datasets"):
-  train_s = VAMP(start=0,stop=10001,image_resize=image_size,toronto_prepro=True,read='/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/TRAIN_REAL_PN_VIRTUAL')
+  train_s = VAMP(start=0,stop=1000,image_resize=image_size,toronto_prepro=True,read='/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/PN_VIRTUAL')
   train_s_x = train_s.X 
   train_s_yf = np.argmax(train_s.y,axis=1)
   train_s_yd = np.ones((len(train_s_yf)), dtype=np.int32)
 
   # LOad the target dataset
-  train_t = VAMP(start=0,stop=10001,image_resize=image_size,toronto_prepro=True,read='/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/TRAIN_REAL_PN_VIRTUAL')
+  train_t = VAMP(start=0,stop=1000,image_resize=image_size,toronto_prepro=True,read='/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/PN_REAL')
   train_t_x = train_t.X 
   train_t_yd = np.zeros((len(train_s_yf)), dtype=np.int32)
 
@@ -83,57 +83,54 @@ with Timer("defining symbolic variables for dataset"):
   yd_t = T.ivector('yd_t')
 
   index = T.lscalar()  # index to a [mini]batch                        # [int] labels
-
+  p = T.lscalar() 
 ########################################################################################################
 # BUILD ACTUAL MODEL #
 ########################################################################################################
 # Forward prop for the Lf_s
-layers = [models2.LeNetConvPoolLayer(rng=rng,layerIdx=0,
+feature_representation_layers = [models2.LeNetConvPoolLayer(rng=rng,layerIdx=0,
                                          filter_shape=(nkerns[0],nb_channels,filter_shapes[0][0],filter_shapes[0][1]), 
                                          image_shape=(batch_size,nb_channels,image_size[0],image_size[1]), 
                                          activation=T.tanh, 
                                          pool_size=pool_size[0], 
                                          pool_stride=pool_stride[0])]
-for h_id in range(1,len(nkerns)):
-    nb_channels_h = layers[-1].filter_shape[0]
-    featuremap_shape = models2.get_channel_shape(layers[-1])
-    layers += [models2.LeNetConvPoolLayer(layerIdx=h_id,rng=rng, 
-                                          filter_shape=(nkerns[h_id],nkerns[h_id-1],filter_shapes[h_id][0],filter_shapes[h_id][1]), 
-                                          image_shape=(batch_size,nkerns[h_id-1],featuremap_shape[0],featuremap_shape[1]), 
-                                          activation=T.tanh, 
-                                          pool_size=pool_size[h_id], 
-                                          pool_stride=pool_stride[h_id])]  
+#for h_id in range(1,len(nkerns)):
+#    nb_channels_h = feature_representation_layers[-1].filter_shape[0]
+#    featuremap_shape = models2.get_channel_shape(feature_representation_layers[-1])
+#    feature_representation_layers += [models2.LeNetConvPoolLayer(layerIdx=h_id,rng=rng, 
+#                                          filter_shape=(nkerns[h_id],nkerns[h_id-1],filter_shapes[h_id][0],filter_shapes[h_id][1]), 
+#                                          pool_size=pool_size[h_id], 
+#                                          pool_stride=pool_stride[h_id])]  
 
-last_conv_fm_shape = models2.get_channel_shape(layers[-1])
+last_conv_fm_shape = models2.get_channel_shape(feature_representation_layers[-1])
 n_in = nkerns[-1] * last_conv_fm_shape[0] * last_conv_fm_shape[1]
-feature_representation_layers = layers
-classification_branch = feature_representation_layers + [models2.ChannelLogisticRegression(layerIdx=len(nkerns)+1,rng=rng, 
-                                      filter_shape=(nb_classes,nkerns[-1],last_conv_fm_shape[0],last_conv_fm_shape[1]), 
-                                      image_shape =(batch_size,nkerns[-1],last_conv_fm_shape[0],last_conv_fm_shape[1]))]
+#import theano.printing as printing
+#n_in = printing.Print('text')(n_in)
+classification_branch = feature_representation_layers + [models2.LogisticRegression(layerIdx=len(nkerns)+1,n_in=n_in, n_out=2)]
 
 
 x_s_input = x_s.reshape((batch_size, image_size[0], image_size[1],nb_channels))
 x_s_input = x_s_input.dimshuffle(0,3,1,2)
 
 next_layer_input = x_s_input
-for layer in classification_branch:
-  next_layer_input = layer.fprop(next_layer_input)
+next_layer_input = classification_branch[0].fprop(next_layer_input)
+#import theano.printing as printing
+#next_layer_input = printing.Print('text')(next_layer_input)
+next_layer_input = classification_branch[-1].fprop(next_layer_input.flatten(2))
 
-p_y_given_x = next_layer_input.copy()
+#p_y_given_x = next_layer_input.copy()
+
 Lf_s = classification_branch[-1].negative_log_likelihood(next_layer_input,yf_s)
 
 #Forward prop for Ld_s
+domainadapt_branch = feature_representation_layers + [models2.LogisticRegression(layerIdx=len(nkerns)+2,n_in=n_in, n_out=2)]
 
-domainadapt_branch = feature_representation_layers + [models2.ChannelLogisticRegression(layerIdx=len(nkerns)+2,rng=rng,
-                                      filter_shape=(nb_classes,nkerns[-1],last_conv_fm_shape[0],last_conv_fm_shape[1]), 
-                                      image_shape =(batch_size,nkerns[-1],last_conv_fm_shape[0],last_conv_fm_shape[1]))]
+x_s_input = x_s.reshape((batch_size, image_size[0], image_size[1],nb_channels))
+x_s_input = x_s_input.dimshuffle(0,3,1,2)
 
-#x_s_input = x_s.reshape((batch_size, image_size[0], image_size[1],nb_channels))
-#x_s_input = x_s_input.dimshuffle(0,3,1,2)
-#domainadapt_branch[0].input = x_s_input
 next_layer_input = x_s_input
-for layer in domainadapt_branch:
-  next_layer_input = layer.fprop(next_layer_input)
+next_layer_input = domainadapt_branch[0].fprop(next_layer_input)
+next_layer_input = domainadapt_branch[-1].fprop(next_layer_input.flatten(2))
 
 Ld_s = domainadapt_branch[-1].negative_log_likelihood(next_layer_input,yd_s)
   
@@ -142,12 +139,12 @@ x_t_input = x_t.reshape((batch_size, image_size[0], image_size[1],nb_channels))
 x_t_input = x_t_input.dimshuffle(0,3,1,2)
 
 next_layer_input = x_t_input
-for layer in domainadapt_branch:
-  next_layer_input = layer.fprop(next_layer_input)
-
+next_layer_input = domainadapt_branch[0].fprop(next_layer_input)
+next_layer_input = domainadapt_branch[-1].fprop(next_layer_input.flatten(2))
 Ld_t = domainadapt_branch[-1].negative_log_likelihood(next_layer_input, yd_t)
-import theano.printing as printing
-Lf_s = printing.Print('text')(Lf_s)
+
+#import theano.printing as printing
+#Ld_s = printing.Print('text')(Ld_s)
 
 #Ld_s = printing.Print('text')(Ld_s)
 #Lf_s = printing.Print('text')(Lf_s)
@@ -156,19 +153,27 @@ Lf_s = printing.Print('text')(Lf_s)
 #                         |Ld_s: the source domain sensitive loss function
 #                         |Ld_t: the target domain sensitive loss function
 # since the domain losses are maximizing we use negative loss in the cost formula
-
-ccost = Lf_s +ulambda *(- Ld_s - Ld_t)
+import theano.printing as printing
+Lf_s = printing.Print('text')(Lf_s)
+lambda_p = 2/(1+T.exp(-gamma * p)) - 1
+ccost = Lf_s - lambda_p *( Ld_s + Ld_t)
+#ccost = -(lambda_p+1) *( Ld_s + Ld_t)
 #ccost = printing.Print('text')(ccost)
 # create a list of all model parameters to be fit by gradient descent
 
-params_w = layers[0].params
+
+params_w = feature_representation_layers[0].params
 for idx in range(1,len(feature_representation_layers)):
-    params_w += layers[idx].params
+    params_w += feature_representation_layers[idx].params
+
+
 
 params_f = classification_branch[-1].params
 params_d = domainadapt_branch[-1].params
 # create a list of gradients for all model parameters
+
 params = params_w + params_f + params_d
+#params = params_w + params_d
 grads = T.grad(ccost, params)
 
 # train_model is a function that updates the model parameters by
@@ -207,12 +212,12 @@ updates = update_rule.get_updates(zip(params, grads))
 #]
 with Timer("compiling train method"):
   train_model = theano.function(
-      inputs=[index],
+      inputs=[index,p],
       outputs=ccost,
       updates=updates,
       givens={
 
-             yd_t: train_t_set_yd[index * batch_size: (index + 1) * batch_size],
+              yd_t: train_t_set_yd[index * batch_size: (index + 1) * batch_size],
               x_s:  train_s_set_x[index * batch_size: (index + 1) * batch_size],
               yf_s: train_s_set_yf[index * batch_size: (index + 1) * batch_size],
               yd_s: train_s_set_yd[index * batch_size: (index + 1) * batch_size],
@@ -221,11 +226,11 @@ with Timer("compiling train method"):
               
       },)
     #on_unused_input='ignore'
-
+'''
 # create a function to compute the mistakes that are made by the model
 with Timer("compiling test method"):
   test_model = theano.function(
-      inputs=[index],
+      inputs=[index,p],
       outputs=ccost,#classification_branch[-1].errors(p_y_given_x,yf_s),
       givens={
               x_s  :train_s_set_x[index * batch_size: (index + 1) * batch_size],
@@ -237,7 +242,7 @@ with Timer("compiling test method"):
 
 with Timer("compiling valid method"):
   validate_model = theano.function(
-      [index],
+      [index,p],
       ccost,#classification_branch[-1].errors(p_y_given_x,yf_s),
       givens={
               x_s  :train_s_set_x[index * batch_size: (index + 1) * batch_size],
@@ -245,7 +250,7 @@ with Timer("compiling valid method"):
               yd_s :train_s_set_yd[index * batch_size: (index + 1) * batch_size],
               x_t  :train_t_set_x[index * batch_size: (index + 1) * batch_size],
               yd_t :train_t_set_yd[index * batch_size: (index + 1) * batch_size]
-      })
+      })'''
 '''
 cost_f_s = theano.function(
     [index],
@@ -314,24 +319,16 @@ epoch = 0
 while (epoch < n_epochs) and (not done_looping):
     epoch = epoch + 1
     for minibatch_index in xrange(n_train_batches):
-        minibatch_avg_cost = train_model(minibatch_index)
-        #cfs = cost_f_s(minibatch)
-        #cds = cost_d_s(minibatch)
-        #cdt = cost_d_t(minibatch_index)
-        #c_total = cost_total(minibatch_index)
-        #print cfs
-        #print cds
-        #print cdt
-        #print c_total 
-        #import pdb
-        #pdb.set_trace()
-        # iteration number
+        p = epoch - 1
+        minibatch_avg_cost = train_model(minibatch_index,p)
+        
         iter = (epoch - 1) * n_train_batches + minibatch_index
+        '''
         if (iter + 1) % validation_frequency == 0:
             #pdb.set_trace()
             # compute zero-one loss on validation set
-            validation_losses = [validate_model(i)
-                                 for i in xrange(n_valid_batches)]
+            ##validation_losses = [validate_model(i,p)
+            ##                     for i in xrange(n_valid_batches)]
             this_validation_loss = numpy.mean(validation_losses)
 
             print(
@@ -355,7 +352,7 @@ while (epoch < n_epochs) and (not done_looping):
                 best_validation_loss = this_validation_loss
                 # test it on the test set
 
-                test_losses = [test_model(i)
+                test_losses = [test_model(i,p)
                                for i in xrange(n_test_batches)]
                 test_score = numpy.mean(test_losses)
 
@@ -370,7 +367,7 @@ while (epoch < n_epochs) and (not done_looping):
                         n_train_batches,
                         test_score * 100.
                     )
-                )
+                )'''
 
         if patience <= iter:
             done_looping = True

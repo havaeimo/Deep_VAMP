@@ -16,9 +16,14 @@ except ImportError:
 import numpy
 
 def toronto_preprocessing(X):
-      X = X / 255.
-      X = X - X.mean(axis=0)
-      return X
+    halfdata_size = X.shape[0]/2
+    X[:halfdata_size,:] = X[:halfdata_size,:] / 255.
+    X[halfdata_size:,:] = X[halfdata_size:,:] / 255.
+    M = X.mean(axis=0)
+    X[:halfdata_size,:] = X[:halfdata_size,:] - M
+    X[halfdata_size:,:] = X[halfdata_size:,:] - M
+    #X = X - X[:10000].mean(axis=0)
+    return X
 
 class VAMP(DenseDesignMatrix):
     """
