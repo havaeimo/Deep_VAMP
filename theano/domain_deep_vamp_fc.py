@@ -43,17 +43,17 @@ with Timer("loading datasets"):
   train_s_yf = np.argmax(train_s.y,axis=1)
   train_s_yd = np.ones((len(train_s_yf)), dtype=np.int32)
 
-  # LOad the target dataset
+  # Load the target dataset
   train_t = VAMP(start=0,stop=1000,image_resize=image_size,toronto_prepro=True,read='/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/PN_REAL')
   train_t_x = train_t.X 
   train_t_yd = np.zeros((len(train_s_yf)), dtype=np.int32)
-
+'''
   valid = VAMP(start=0,stop=1000,image_resize=image_size,toronto_prepro=True,read='/home/local/USHERBROOKE/havm2701/data/Data/Deep_VAMP/TRAIN_REAL_PN_VIRTUAL')
   valid_x = valid.X
   valid_y = np.argmax(valid.y,axis=1)
   test_x = valid.X
   test_y = np.argmax(valid.y,axis=1)
-
+'''
  
 with Timer("defining symbolic variables for dataset"):
 
@@ -104,50 +104,37 @@ feature_representation_layers = [models2.LeNetConvPoolLayer(rng=rng,layerIdx=0,
 
 last_conv_fm_shape = models2.get_channel_shape(feature_representation_layers[-1])
 n_in = nkerns[-1] * last_conv_fm_shape[0] * last_conv_fm_shape[1]
-#import theano.printing as printing
-#n_in = printing.Print('text')(n_in)
+
+# make the classification branch
 classification_branch = feature_representation_layers + [models2.LogisticRegression(layerIdx=len(nkerns)+1,n_in=n_in, n_out=2)]
 
-
+#forward prop for Lf_s
 x_s_input = x_s.reshape((batch_size, image_size[0], image_size[1],nb_channels))
 x_s_input = x_s_input.dimshuffle(0,3,1,2)
-
 next_layer_input = x_s_input
 next_layer_input = classification_branch[0].fprop(next_layer_input)
-#import theano.printing as printing
-#next_layer_input = printing.Print('text')(next_layer_input)
 next_layer_input = classification_branch[-1].fprop(next_layer_input.flatten(2))
-
-#p_y_given_x = next_layer_input.copy()
-
 Lf_s = classification_branch[-1].negative_log_likelihood(next_layer_input,yf_s)
 
-#Forward prop for Ld_s
+# make the domain adaptation branch
 domainadapt_branch = feature_representation_layers + [models2.LogisticRegression(layerIdx=len(nkerns)+2,n_in=n_in, n_out=2)]
 
+#Forward prop for Ld_s
 x_s_input = x_s.reshape((batch_size, image_size[0], image_size[1],nb_channels))
 x_s_input = x_s_input.dimshuffle(0,3,1,2)
-
 next_layer_input = x_s_input
 next_layer_input = domainadapt_branch[0].fprop(next_layer_input)
 next_layer_input = domainadapt_branch[-1].fprop(next_layer_input.flatten(2))
-
 Ld_s = domainadapt_branch[-1].negative_log_likelihood(next_layer_input,yd_s)
   
 # Forward prop for Ld_T
 x_t_input = x_t.reshape((batch_size, image_size[0], image_size[1],nb_channels))
 x_t_input = x_t_input.dimshuffle(0,3,1,2)
-
 next_layer_input = x_t_input
 next_layer_input = domainadapt_branch[0].fprop(next_layer_input)
 next_layer_input = domainadapt_branch[-1].fprop(next_layer_input.flatten(2))
 Ld_t = domainadapt_branch[-1].negative_log_likelihood(next_layer_input, yd_t)
 
-#import theano.printing as printing
-#Ld_s = printing.Print('text')(Ld_s)
-
-#Ld_s = printing.Print('text')(Ld_s)
-#Lf_s = printing.Print('text')(Lf_s)
 
 #Different cost functions |Lf_s: the cost fucntion associated to the regulare fprop of source domain example
 #                         |Ld_s: the source domain sensitive loss function
@@ -157,32 +144,23 @@ import theano.printing as printing
 Lf_s = printing.Print('text')(Lf_s)
 lambda_p = 2/(1+T.exp(-gamma * p)) - 1
 ccost = Lf_s - lambda_p *( Ld_s + Ld_t)
-#ccost = -(lambda_p+1) *( Ld_s + Ld_t)
-#ccost = printing.Print('text')(ccost)
+
+
 # create a list of all model parameters to be fit by gradient descent
-
-
 params_w = feature_representation_layers[0].params
 for idx in range(1,len(feature_representation_layers)):
     params_w += feature_representation_layers[idx].params
 
-
-
 params_f = classification_branch[-1].params
 params_d = domainadapt_branch[-1].params
-# create a list of gradients for all model parameters
-
 params = params_w + params_f + params_d
-#params = params_w + params_d
+
+# create a list of gradients for all model parameters
 grads = T.grad(ccost, params)
 
-# train_model is a function that updates the model parameters by
-# SGD Since this model has many parameters, it would be tedious to
-# manually create an update rule for each model parameter. We thus
-# create the updates list by automatically looping over all
-# (params[i], grads[i]) pairs.
-        # Initialize update_rule
-      
+
+
+# Initialize update_rule      
 if update_rule == "None":
     update_rule = DecreasingLearningRate(learning_rate, decrease_constant)
 if update_rule == "expdecay":    
@@ -201,15 +179,12 @@ elif update_rule == "momentum":
     update_rule = Momentum(learning_rate=learning_rate,init_momentum=init_momentum)
 
     
-
+#We create the updates list by automatically looping over all
+# (params[i], grads[i]) pairs.
 updates = update_rule.get_updates(zip(params, grads))
 
 
 
-#updates = [
-#    (param_i, param_i - learning_rate * grad_i)
-#    for param_i, grad_i in zip(params, grads)
-#]
 with Timer("compiling train method"):
   train_model = theano.function(
       inputs=[index,p],
