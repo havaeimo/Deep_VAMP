@@ -65,14 +65,14 @@ with Timer("defining symbolic variables for dataset"):
   train_t_set_yd = theano.shared(train_t_yd,borrow=True)
 
 
-  valid_set_x = theano.shared(numpy.asarray(valid_x,dtype=theano.config.floatX),borrow=True)
-  valid_set_y = theano.shared(numpy.asarray(valid_y,dtype=np.int32),borrow=True)
-  test_set_x = theano.shared(numpy.asarray(valid_x,dtype=theano.config.floatX),borrow=True)
-  test_set_y = theano.shared(numpy.asarray(valid_y,dtype=np.int32),borrow=True)   
+  #valid_set_x = theano.shared(numpy.asarray(valid_x,dtype=theano.config.floatX),borrow=True)
+  #valid_set_y = theano.shared(numpy.asarray(valid_y,dtype=np.int32),borrow=True)
+  #test_set_x = theano.shared(numpy.asarray(valid_x,dtype=theano.config.floatX),borrow=True)
+  #test_set_y = theano.shared(numpy.asarray(valid_y,dtype=np.int32),borrow=True)   
   # compute number of minibatches for training, validation and testing
   n_train_batches = train_s_set_x.get_value(borrow=True).shape[0] / batch_size
-  n_valid_batches = valid_set_x.get_value(borrow=True).shape[0] / batch_size
-  n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size
+  #n_valid_batches = valid_set_x.get_value(borrow=True).shape[0] / batch_size
+  #n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size
 
 
 
@@ -158,8 +158,10 @@ params = params_w + params_f + params_d
 # create a list of gradients for all model parameters
 grads = T.grad(ccost, params)
 
+grads[-2:] = -1*grads[-2:]
 
-
+import pdb
+pdb.set_trace()
 # Initialize update_rule      
 if update_rule == "None":
     update_rule = DecreasingLearningRate(learning_rate, decrease_constant)
