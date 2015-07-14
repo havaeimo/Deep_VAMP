@@ -140,8 +140,6 @@ Ld_t = domainadapt_branch[-1].negative_log_likelihood(next_layer_input, yd_t)
 #                         |Ld_s: the source domain sensitive loss function
 #                         |Ld_t: the target domain sensitive loss function
 # since the domain losses are maximizing we use negative loss in the cost formula
-import theano.printing as printing
-Lf_s = printing.Print('text')(Lf_s)
 lambda_p = 2/(1+T.exp(-gamma * p)) - 1
 ccost = Lf_s - lambda_p *( Ld_s + Ld_t)
 
@@ -157,11 +155,8 @@ params = params_w + params_f + params_d
 
 # create a list of gradients for all model parameters
 grads = T.grad(ccost, params)
+grads[-2:] = -1*grads[-2:]  # the last two elements in the grads list correspond to 'w' and 'b' of the domainadapt_branch.
 
-grads[-2:] = -1*grads[-2:]
-
-import pdb
-pdb.set_trace()
 # Initialize update_rule      
 if update_rule == "None":
     update_rule = DecreasingLearningRate(learning_rate, decrease_constant)
